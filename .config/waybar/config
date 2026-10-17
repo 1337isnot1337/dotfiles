@@ -1,0 +1,26 @@
+{
+    "include": [
+        "~/.config/waybar/default"
+    ],
+    "layer": "top",
+    "position": "top",
+    "exclusive": true,
+    "passthrough": false,
+    "height": 48,
+    "modules-left": [
+        "custom/wlogout",
+        "group/notifications",
+        "hyprland/window"
+    ],
+    "modules-center": [
+        "custom/spotify"
+    ],
+    "modules-right": [
+        "privacy",
+        "custom/capslock",
+        "custom/psad",
+        "group/stats",
+        "custom/wallpaper",
+        "clock"
+    ]
+}

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# Keep the full history in Bolt, but only feed the newest 2000 entries to
+# Rofi.  cliphist list is newest-first, and the selected row retains its
+# original numeric ID, so old database entries remain decodable.
+selected="$(
+    $HOME/.local/bin/cliphist -preview-width 100 list |
+        /usr/bin/head -n 2000 |
+        /usr/bin/rofi -dmenu -i
+)" || exit 0
+
+[[ -n "$selected" ]] || exit 0
+
+printf '%s\n' "$selected" |
+    $HOME/.local/bin/cliphist decode |
+    /usr/bin/wl-copy

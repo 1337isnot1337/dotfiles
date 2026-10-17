@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+set -u
+
+sound_dir="$HOME/.local/share/sounds/volume-feedback"
+note_index_helper="$HOME/.local/bin/volume-note-index"
+manifest="$sound_dir/SHA256SUMS"
+failures=0
+
+if [[ ! -x "$note_index_helper" ]]; then
+    printf 'missing executable: %s\n' "$note_index_helper" >&2
+    failures=$((failures + 1))
+fi
+
+tone_count=$(find "$sound_dir" -maxdepth 1 -type f -name 'scale-*.wav' | wc -l)
+if [[ "$tone_count" -ne 21 ]]; then
+    printf 'expected 21 scale tones, found %s\n' "$tone_count" >&2
+    failures=$((failures + 1))
+fi
+
+for note in $(seq 0 20); do
+    tone=$(printf '%s/scale-%02d.wav' "$sound_dir" "$note")
+    if [[ ! -s "$tone" ]]; then
+        printf 'missing tone: %s\n' "$tone" >&2
+        failures=$((failures + 1))
+    elif ! /usr/bin/ffprobe -v error -select_streams a:0 \
+        -show_entries stream=codec_name -of default=nw=1:nk=1 "$tone" \
+        | grep -qx pcm_s16le; then
+        printf 'invalid tone: %s\n' "$tone" >&2
+        failures=$((failures + 1))
+    fi
+done
+
+if [[ ! -s "$manifest" ]] || ! (cd "$sound_dir" && /usr/bin/sha256sum -c "$manifest" >/dev/null); then
+    printf 'tone checksum verification failed\n' >&2
+    failures=$((failures + 1))
+fi
+
+check_mapping() {
+    local volume="$1"
+    local expected="$2"
+    local actual
+    actual=$("$note_index_helper" "$volume" 2>/dev/null || true)
+    if [[ "$actual" != "$expected" ]]; then
+        printf 'mapping mismatch: volume=%s expected=%s actual=%s\n' \
+            "$volume" "$expected" "${actual:-invalid}" >&2
+        failures=$((failures + 1))
+    fi
+}
+
+check_mapping 0 0
+check_mapping 0.05 1
+check_mapping 0.50 10
+check_mapping 0.95 19
+check_mapping 0.99 20
+check_mapping 1 20
+
+if [[ "$failures" -ne 0 ]]; then
+    printf 'volume feedback check failed (%s issue(s))\n' "$failures" >&2
+    exit 1
+fi
+
+printf 'volume feedback OK: 21 tones, stable 0%%..100%% mapping\n'

@@ -1,0 +1,296 @@
+#!/usr/bin/env python3
+"""Keep first-copy timestamps beside cliphist entries and expose them to Rofi.
+
+The cliphist database deliberately stores clipboard payloads byte-for-byte.  This
+helper leaves that database untouched and keeps timestamp metadata in a separate
+sidecar keyed by the payload's SHA-256 digest.  Keying by digest means that a
+duplicate copied later keeps its original first-copy timestamp even though
+cliphist assigns it a new numeric ID after deduplication.
+"""
+
+from __future__ import annotations
+
+import datetime as _dt
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+from contextlib import contextmanager
+from typing import IO, Any, Iterator
+
+
+REAL_CLIPHIST = os.environ.get("CLIPHIST_REAL", "/usr/bin/cliphist")
+cache_home = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
+metadata_dir = cache_home / "cliphist"
+metadata_path = metadata_dir / "metadata.json"
+lock_path = metadata_dir / "metadata.lock"
+
+
+@contextmanager
+def metadata_lock(exclusive: bool) -> Iterator[None]:
+    metadata_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with lock_path.open("a+") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
+def empty_state() -> dict[str, Any]:
+    return {"version": 1, "entries": {}, "ids": {}}
+
+
+def load_state() -> dict[str, Any]:
+    if not metadata_path.exists():
+        return empty_state()
+    try:
+        with metadata_path.open("r", encoding="utf-8") as metadata_file:
+            state = json.load(metadata_file)
+    except (OSError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"cannot read {metadata_path}: {error}") from error
+
+    if not isinstance(state, dict):
+        raise RuntimeError(f"invalid metadata format in {metadata_path}")
+    state.setdefault("version", 1)
+    state.setdefault("entries", {})
+    state.setdefault("ids", {})
+    return state
+
+
+def save_state(state: dict[str, Any]) -> None:
+    metadata_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    temporary_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=metadata_dir,
+            prefix=".metadata.",
+            delete=False,
+        ) as temporary_file:
+            temporary_name = temporary_file.name
+            json.dump(state, temporary_file, ensure_ascii=False, indent=2, sort_keys=True)
+            temporary_file.write("\n")
+            temporary_file.flush()
+            os.fsync(temporary_file.fileno())
+        os.chmod(temporary_name, 0o600)
+        os.replace(temporary_name, metadata_path)
+    finally:
+        if temporary_name is not None and os.path.exists(temporary_name):
+            os.unlink(temporary_name)
+
+
+def run_real_clipboard(args: list[str], *, input_data: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(
+        [REAL_CLIPHIST, *args],
+        input=input_data,
+        stdout=subprocess.PIPE,
+        stderr=None,
+        check=False,
+    )
+
+
+def list_rows() -> list[bytes]:
+    result = run_real_clipboard(["list"])
+    if result.returncode != 0:
+        raise RuntimeError(f"cliphist list exited with status {result.returncode}")
+    return result.stdout.splitlines()
+
+
+def row_id(row: bytes) -> str | None:
+    identifier = row.split(b"\t", 1)[0].strip()
+    try:
+        decoded = identifier.decode("ascii")
+    except UnicodeDecodeError:
+        return None
+    return decoded if decoded.isdigit() else None
+
+
+def decode(identifier: str) -> bytes | None:
+    result = run_real_clipboard(["decode", identifier])
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def now_iso() -> str:
+    return _dt.datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def readable_timestamp(timestamp: str | None) -> str:
+    if not timestamp:
+        return "first copied: unavailable"
+    try:
+        parsed = _dt.datetime.fromisoformat(timestamp)
+    except ValueError:
+        return f"first copied: {timestamp}"
+    return f"first copied: {parsed.astimezone().strftime('%Y-%m-%d %H:%M:%S %Z')}"
+
+
+def safe_metadata_value(value: str) -> str:
+    # Rofi uses NUL to begin row metadata and unit-separator between metadata
+    # keys and values.  Never let clipboard previews terminate that protocol.
+    return value.replace("\x00", " ").replace("\x1f", " ").replace("\n", " ")
+
+
+def metadata_for_id(identifier: str, state: dict[str, Any]) -> str | None:
+    digest = state.get("ids", {}).get(identifier)
+    if not isinstance(digest, str):
+        return None
+    entry = state.get("entries", {}).get(digest)
+    if not isinstance(entry, dict):
+        return None
+    timestamp = entry.get("first_copied")
+    return timestamp if isinstance(timestamp, str) else None
+
+
+def emit_rofi_rows(output: IO[str]) -> None:
+    with metadata_lock(exclusive=False):
+        state = load_state()
+        rows = list_rows()
+
+    active_ids = {identifier for identifier in (row_id(row) for row in rows) if identifier is not None}
+    stale_ids = set(state.get("ids", {})) - active_ids
+    if stale_ids:
+        # This is only an in-memory cleanup for this listing.  Store operations
+        # perform the persistent cleanup while holding the exclusive lock.
+        state["ids"] = {key: value for key, value in state.get("ids", {}).items() if key in active_ids}
+
+    for row in rows:
+        identifier = row_id(row)
+        if identifier is None:
+            continue
+        base = row.decode("utf-8", errors="surrogateescape")
+        timestamp = metadata_for_id(identifier, state)
+        readable = readable_timestamp(timestamp)
+        # `meta` and `info` are hidden Rofi row metadata.  Leave the base row
+        # as the only visible value: the timestamp belongs only to metadata
+        # and the on-disk sidecar, never to the picker display.
+        search_meta = safe_metadata_value(f"{readable} {timestamp or 'unknown'}")
+        info = json.dumps(
+            {"id": int(identifier), "first_copied": timestamp},
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        output.write(base)
+        output.write("\x00meta\x1f")
+        output.write(search_meta)
+        output.write("\x00info\x1f")
+        output.write(safe_metadata_value(info))
+        output.write("\n")
+
+
+def store() -> int:
+    input_data = sys.stdin.buffer.read()
+    clipboard_state = os.environ.get("CLIPBOARD_STATE", "")
+
+    with metadata_lock(exclusive=True):
+        result = run_real_clipboard(["store"], input_data=input_data)
+        if result.returncode != 0:
+            return result.returncode
+        # cliphist intentionally does not retain sensitive or clear-state data.
+        if clipboard_state in {"sensitive", "clear"} or not input_data.strip():
+            return 0
+
+        rows = list_rows()
+        if not rows:
+            return 0
+        newest_id = row_id(rows[0])
+        if newest_id is None:
+            return 0
+        # Confirm that cliphist actually stored this payload.  This prevents a
+        # rejected oversized entry from receiving timestamp metadata.
+        if decode(newest_id) != input_data:
+            return 0
+
+        state = load_state()
+        digest = hashlib.sha256(input_data).hexdigest()
+        entries = state.setdefault("entries", {})
+        if digest not in entries or not isinstance(entries[digest], dict):
+            entries[digest] = {"first_copied": now_iso()}
+        elif not isinstance(entries[digest].get("first_copied"), str):
+            entries[digest]["first_copied"] = now_iso()
+
+        ids = state.setdefault("ids", {})
+        ids[newest_id] = digest
+        active_ids = {identifier for identifier in (row_id(row) for row in rows) if identifier is not None}
+        state["ids"] = {key: value for key, value in ids.items() if key in active_ids}
+        save_state(state)
+    return 0
+
+
+def selected_id(selected: str) -> str | None:
+    identifier = row_id(selected.encode("utf-8", errors="surrogateescape"))
+    if identifier is not None:
+        return identifier
+    info = os.environ.get("ROFI_INFO", "")
+    try:
+        parsed = json.loads(info)
+    except json.JSONDecodeError:
+        return None
+    identifier = parsed.get("id") if isinstance(parsed, dict) else None
+    if isinstance(identifier, int) and identifier >= 0:
+        return str(identifier)
+    return None
+
+
+def rofi_mode() -> int:
+    retv = os.environ.get("ROFI_RETV", "0")
+    if retv == "0":
+        sys.stdout.write("\x00prompt\x1fClipboard\n")
+        sys.stdout.write("\x00no-custom\x1ftrue\n")
+        emit_rofi_rows(sys.stdout)
+        return 0
+    if retv != "1":
+        return 0
+
+    selected = sys.argv[2] if len(sys.argv) > 2 else (sys.argv[1] if len(sys.argv) > 1 else "")
+    identifier = selected_id(selected)
+    if identifier is None:
+        return 1
+
+    decoded = subprocess.Popen(
+        [REAL_CLIPHIST, "decode", identifier],
+        stdout=subprocess.PIPE,
+        stderr=None,
+    )
+    assert decoded.stdout is not None
+    copied = subprocess.run(["wl-copy"], stdin=decoded.stdout, check=False)
+    decoded.stdout.close()
+    decode_status = decoded.wait()
+    return copied.returncode if copied.returncode != 0 else decode_status
+
+
+def usage() -> int:
+    print(f"usage: {sys.argv[0]} <store|list|decode|rofi> [args...]", file=sys.stderr)
+    return 2
+
+
+def main() -> int:
+    if len(sys.argv) < 2:
+        return usage()
+    command = sys.argv[1]
+    try:
+        if command == "store":
+            return store()
+        if command == "list":
+            emit_rofi_rows(sys.stdout)
+            return 0
+        if command == "decode":
+            os.execv(REAL_CLIPHIST, [REAL_CLIPHIST, "decode", *sys.argv[2:]])
+        if command == "rofi":
+            return rofi_mode()
+        return usage()
+    except (OSError, RuntimeError) as error:
+        print(error, file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

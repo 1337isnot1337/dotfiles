@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -u
+
+NOTIFY_SEND=/usr/bin/notify-send
+
+# Notify once per discharge at each threshold. Charging resets the thresholds.
+declare -A notified=([10]=0 [5]=0 [2]=0)
+
+send_notice() {
+    local level="$1" title="$2" body="$3" urgency="${4:-normal}"
+    if "$NOTIFY_SEND" --app-name="Battery" --urgency="$urgency" \
+        --icon="battery-caution" --expire-time=0 \
+        --hint=boolean:SWAYNC_BYPASS_DND:true "$title" "$body"
+    then
+        notified["$level"]=1
+        printf 'low-battery-notify: sent %s%% warning\n' "$level" >&2
+    else
+        printf 'low-battery-notify: notify-send failed for %s%% warning; will retry\n' "$level" >&2
+    fi
+}
+
+while :; do
+    capacity_files=(/sys/class/power_supply/BAT*/capacity)
+    total=0 count=0 charging=0
+
+    for capacity_file in "${capacity_files[@]}"; do
+        [ -f "$capacity_file" ] || continue
+        capacity=$(<"$capacity_file")
+        [[ "$capacity" =~ ^[0-9]+$ ]] || continue
+        total=$((total + capacity))
+        count=$((count + 1))
+        status_file="${capacity_file%/capacity}/status"
+        if [ -r "$status_file" ] && [[ $(<"$status_file") =~ ^(Charging|Full|Not.charging)$ ]]; then
+            charging=1
+        fi
+    done
+
+    if (( count > 0 )); then
+        percent=$((total / count))
+        if (( charging )); then
+            notified=([10]=0 [5]=0 [2]=0)
+        else
+            if (( percent <= 10 && !notified[10] )); then
+                send_notice 10 "Battery low: ${percent}%" "Please connect your charger soon."
+            fi
+            if (( percent <= 5 && !notified[5] )); then
+                send_notice 5 "Battery very low: ${percent}%" "Connect your charger now."
+            fi
+            if (( percent <= 2 && !notified[2] )); then
+                send_notice 2 "Battery critically low: ${percent}%" "Your computer is about to die—connect power immediately." critical
+            fi
+        fi
+    fi
+    sleep 30
+done

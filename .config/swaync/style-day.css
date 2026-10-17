@@ -1,0 +1,45 @@
+/* Warm, dark daytime palette: low-glare cocoa with the rice's peach accents. */
+:root {
+  --cc-bg: rgba(30, 25, 28, 0.98);
+  --noti-border-color: rgba(227, 176, 127, 0.22);
+  --noti-bg: 39, 31, 33;
+  --noti-bg-alpha: 0.98;
+  --noti-bg-darker: rgb(30, 25, 28);
+  --noti-bg-hover: rgba(227, 176, 127, 0.11);
+  --noti-bg-focus: rgba(229, 138, 106, 0.12);
+  --noti-close-bg: rgba(227, 176, 127, 0.09);
+  --noti-close-bg-hover: rgba(229, 138, 106, 0.17);
+  --text-color: rgb(244, 232, 228);
+  --text-color-disabled: rgb(148, 124, 126);
+  --bg-selected: rgb(227, 176, 127);
+  --notification-icon-size: 52px;
+  --notification-app-icon-size: 20px;
+  --notification-group-icon-size: 28px;
+  --border-radius: 16px;
+  --font-size-body: 13px;
+  --font-size-summary: 14px;
+}
+
+@define-color cc_bg rgba(30, 25, 28, 0.98);
+@define-color surface rgba(39, 31, 33, 0.98);
+@define-color surface_opaque rgb(39, 31, 33);
+@define-color surface_alt rgba(50, 39, 40, 0.98);
+@define-color surface_hover rgba(227, 176, 127, 0.11);
+@define-color outline rgba(227, 176, 127, 0.22);
+@define-color divider rgba(227, 176, 127, 0.13);
+@define-color text #f4e8e4;
+@define-color muted #c3aba8;
+@define-color dim #947c7e;
+@define-color accent #e3b07f;
+@define-color accent_soft rgba(227, 176, 127, 0.12);
+@define-color coral #e58a6a;
+@define-color coral_soft rgba(229, 138, 106, 0.11);
+@define-color success #9cc7a3;
+@define-color success_soft rgba(156, 199, 163, 0.11);
+@define-color warning #e8c48f;
+@define-color warning_soft rgba(232, 196, 143, 0.12);
+@define-color danger #ef91aa;
+@define-color danger_soft rgba(239, 145, 170, 0.12);
+@define-color shadow rgba(8, 5, 7, 0.56);
+
+@import url("style-common.css");

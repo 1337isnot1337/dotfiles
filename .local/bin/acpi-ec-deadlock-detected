@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+# Report an ACPI embedded-controller deadlock only when both sides of the
+# failure are visible: blocked EC workqueue workers and a userspace/kernel
+# task waiting on the ACPI interpreter semaphore.
+
+set -u
+
+LC_ALL=C /usr/bin/ps -eT -o state=,wchan:40=,args= 2>/dev/null |
+    /usr/bin/awk '
+        $1 ~ /^D/ && $2 == "acpi_os_wait_semaphore" {
+            acpi_waiters++
+        }
+
+        $1 ~ /^D/ && $0 ~ /kworker\/[[:alnum:]:_-]+\+kec_query/ {
+            ec_workers++
+        }
+
+        END {
+            # One transient D-state EC worker is not enough evidence. Multiple
+            # blocked EC workers plus an ACPI semaphore waiter matches the
+            # deadlock signature emitted by the kernel hung-task report.
+            exit !((ec_workers >= 2) && (acpi_waiters >= 1))
+        }
+    '

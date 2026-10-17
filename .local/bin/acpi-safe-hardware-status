@@ -1,0 +1,283 @@
+#!/usr/bin/env bash
+
+# Read ACPI-backed desktop status without allowing Waybar or Starship to block
+# forever in the kernel. The hardware read happens in a detached worker. If it
+# does not finish, the parent diagnoses the wait state and returns promptly.
+
+set -u
+
+readonly DETECTOR="$HOME/.local/bin/acpi-ec-deadlock-detected"
+readonly READ_ATTEMPTS=20
+readonly READ_POLL_SECONDS=0.05
+
+GUARDED_VALUE=""
+
+json_status() {
+    local text="$1"
+    local tooltip="$2"
+    local css_class="$3"
+
+    /usr/bin/jq --compact-output --null-input \
+        --arg text "$text" \
+        --arg tooltip "$tooltip" \
+        --arg class "$css_class" \
+        '{text: $text, tooltip: $tooltip, class: $class}'
+}
+
+deadlock_is_detected() {
+    "$DETECTOR"
+}
+
+process_state() {
+    local pid="$1"
+    local stat rest
+
+    [ -r "/proc/$pid/stat" ] || return 1
+    stat=$(<"/proc/$pid/stat")
+    rest=${stat##*) }
+    printf '%s\n' "${rest%% *}"
+}
+
+stop_worker_without_blocking() {
+    local pid="$1"
+    local state
+
+    kill -KILL "$pid" 2>/dev/null || true
+    state=$(process_state "$pid" 2>/dev/null || true)
+
+    if [ -z "$state" ] || [ "$state" = "Z" ]; then
+        wait "$pid" 2>/dev/null || true
+    else
+        # A D-state task cannot honor SIGKILL until its kernel wait ends. Do
+        # not let this status script become another process waiting for it.
+        disown "$pid" 2>/dev/null || true
+    fi
+}
+
+run_guarded() {
+    local producer="$1"
+    local runtime_dir output pid attempt state return_code wchan
+
+    runtime_dir=${XDG_RUNTIME_DIR:-/tmp}
+    [ -d "$runtime_dir" ] || runtime_dir=/tmp
+    output=$(/usr/bin/mktemp "$runtime_dir/acpi-safe-read.XXXXXX") || return 2
+
+    ("$producer") >"$output" 2>/dev/null </dev/null &
+    pid=$!
+
+    for ((attempt = 0; attempt < READ_ATTEMPTS; attempt++)); do
+        state=$(process_state "$pid" 2>/dev/null || true)
+        if [ -z "$state" ] || [ "$state" = "Z" ]; then
+            wait "$pid" 2>/dev/null
+            return_code=$?
+            GUARDED_VALUE=$(<"$output")
+            /usr/bin/rm -f -- "$output"
+            return "$return_code"
+        fi
+        /usr/bin/sleep "$READ_POLL_SECONDS"
+    done
+
+    wchan=$(<"/proc/$pid/wchan" 2>/dev/null || true)
+    stop_worker_without_blocking "$pid"
+    /usr/bin/rm -f -- "$output"
+
+    if [ "$wchan" = "acpi_os_wait_semaphore" ] && deadlock_is_detected; then
+        return 125
+    fi
+
+    return 124
+}
+
+read_battery() {
+    local battery capacity status
+    local -a batteries
+
+    shopt -s nullglob
+    batteries=(/sys/class/power_supply/BAT*)
+    ((${#batteries[@]} > 0)) || return 3
+    battery=${batteries[0]}
+
+    IFS= read -r capacity <"$battery/capacity" || return 4
+    IFS= read -r status <"$battery/status" || return 4
+    [[ $capacity =~ ^[0-9]+$ ]] || return 4
+
+    printf '%s\t%s\n' "$status" "$capacity"
+}
+
+read_temperature() {
+    local raw
+
+    IFS= read -r raw </sys/class/thermal/thermal_zone0/temp || return 4
+    [[ $raw =~ ^-?[0-9]+$ ]] || return 4
+
+    if ((raw > 1000 || raw < -1000)); then
+        printf '%d\n' "$((raw / 1000))"
+    else
+        printf '%d\n' "$raw"
+    fi
+}
+
+battery_icon_waybar() {
+    local status="$1"
+    local capacity="$2"
+
+    case "$status" in
+        Charging) printf '%s\n' "󰂅"; return ;;
+        "Not charging") printf '%s\n' ""; return ;;
+    esac
+
+    if ((capacity <= 20)); then
+        printf '%s\n' "󰁻"
+    elif ((capacity <= 40)); then
+        printf '%s\n' "󰁽"
+    elif ((capacity <= 60)); then
+        printf '%s\n' "󰁿"
+    elif ((capacity <= 80)); then
+        printf '%s\n' "󰂁"
+    else
+        printf '%s\n' "󰁹"
+    fi
+}
+
+battery_icon_starship() {
+    local status="$1"
+
+    case "$status" in
+        Charging) printf '%s\n' "󰂄" ;;
+        Full) printf '%s\n' "󰁹" ;;
+        *) printf '%s\n' "󰁾" ;;
+    esac
+}
+
+battery_class() {
+    local capacity="$1"
+
+    if ((capacity <= 15)); then
+        printf '%s\n' "critical"
+    elif ((capacity <= 30)); then
+        printf '%s\n' "warning"
+    elif ((capacity >= 95)); then
+        printf '%s\n' "good"
+    else
+        printf '%s\n' "normal"
+    fi
+}
+
+render_waybar_deadlock() {
+    json_status \
+        "KERNEL DEADLOCK" \
+        "ACPI embedded-controller kernel deadlock detected" \
+        "kernel-deadlock"
+}
+
+render_starship_deadlock() {
+    printf '%s\n' "KERNEL DEADLOCK"
+}
+
+render_waybar_battery() {
+    local status capacity icon css_class separator
+
+    if deadlock_is_detected; then
+        render_waybar_deadlock
+        return
+    fi
+
+    run_guarded read_battery
+    case $? in
+        0)
+            IFS=$'\t' read -r status capacity <<<"$GUARDED_VALUE"
+            icon=$(battery_icon_waybar "$status" "$capacity")
+            css_class=$(battery_class "$capacity")
+            # The charging/plug glyph has a tight right side bearing.  Give it
+            # a wider optical gap without changing the already-balanced gap
+            # used by the regular battery glyphs.
+            separator=" "
+            case "$status" in
+                Charging|"Not charging") separator=" " ;;
+            esac
+            json_status \
+                "$icon$separator$capacity%" \
+                "$status, $capacity%" \
+                "$css_class"
+            ;;
+        3)
+            json_status "" "No battery detected" "unavailable"
+            ;;
+        125)
+            render_waybar_deadlock
+            ;;
+        *)
+            json_status "SENSOR TIMEOUT" "Battery status read failed without the ACPI/EC deadlock signature" "sensor-timeout"
+            ;;
+    esac
+}
+
+render_starship_battery() {
+    local status capacity icon
+
+    if deadlock_is_detected; then
+        render_starship_deadlock
+        return
+    fi
+
+    run_guarded read_battery
+    case $? in
+        0)
+            IFS=$'\t' read -r status capacity <<<"$GUARDED_VALUE"
+            icon=$(battery_icon_starship "$status")
+            printf '%s %s%%\n' "$icon" "$capacity"
+            ;;
+        3)
+            return 0
+            ;;
+        125)
+            render_starship_deadlock
+            ;;
+        *)
+            # Do not label an unrelated read failure as a kernel deadlock.
+            return 0
+            ;;
+    esac
+}
+
+render_waybar_temperature() {
+    local temperature
+
+    if deadlock_is_detected; then
+        render_waybar_deadlock
+        return
+    fi
+
+    run_guarded read_temperature
+    case $? in
+        0)
+            temperature=$GUARDED_VALUE
+            json_status \
+                " ${temperature}°C" \
+                "Temperature: ${temperature}°C" \
+                "normal"
+            ;;
+        125)
+            render_waybar_deadlock
+            ;;
+        *)
+            json_status "SENSOR TIMEOUT" "Temperature read failed without the ACPI/EC deadlock signature" "sensor-timeout"
+            ;;
+    esac
+}
+
+case "${1:-}" in
+    waybar-battery)
+        render_waybar_battery
+        ;;
+    starship-battery)
+        render_starship_battery
+        ;;
+    waybar-temperature)
+        render_waybar_temperature
+        ;;
+    *)
+        printf 'usage: %s {waybar-battery|starship-battery|waybar-temperature}\n' "$0" >&2
+        exit 2
+        ;;
+esac

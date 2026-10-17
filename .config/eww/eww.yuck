@@ -1,0 +1,667 @@
+;; Shared state ---------------------------------------------------------------
+
+(deflisten media_data
+  :initial '{"available":false,"status":"Stopped","title":"Nothing playing","artist":"Choose something to listen to","album":"","current_player":"audio-player","source":"Media","url":"~/.config/eww/assets/default.png","tint":"#ebcb8b","tint_soft":"rgba(235,203,139,0.14)","dark":"#17171b","accent_text":"#17171b","shuffle":false,"loop":"None","position":"00:00","length":"00:00","progress":0,"volume":0,"muted":false,"lyrics_available":false,"lyric_previous":"","lyric_current":"","lyric_next":""}'
+  `/usr/bin/python "$HOME/.config/eww/src/metadata.py"`)
+
+(deflisten wifi_data
+  :initial '{"available":false,"enabled":false,"connected":false,"device":"","connection":"Unavailable","ssid":"Not connected","signal":0,"ip":"No IPv4 address","networks":[]}'
+  `$HOME/.config/eww/src/wifi_status.py --watch`)
+
+(deflisten bluetooth_data
+  :initial '{"available":false,"powered":false,"discovering":false,"controller":"No Bluetooth adapter","connected_count":0,"devices":[]}'
+  `$HOME/.config/eww/src/bluetooth_status.py --watch`)
+
+(deflisten pacman_data
+  :initial '{"status":"checking","count":0,"packages":[],"package_items":[],"kernel_count":0,"kernel_packages":[],"kernel_notice":"","dkms_count":0,"dkms_packages":[],"dkms_notice":"","message":"Checking for available updates…","error":"","log":"","log_tail":""}'
+  `$HOME/.config/eww/src/pacman_status.py --watch`)
+
+(defvar wifi_busy "")
+(defvar wifi_selected "")
+(defvar wifi_password "")
+(defvar bluetooth_busy "")
+
+;; The plaque is a true session snapshot.  open_desktop_plaque.sh captures
+;; Fastfetch once, updates this variable, and only then opens the window.
+(defvar plaque_data
+  '{"identity":"user@host","captured":"SESSION START","os":"Arch Linux","host":"Laptop","kernel":"Unavailable","wm":"Hyprland · Wayland","cpu":"Unavailable","gpu":"Unavailable","memory":"Unavailable","display":"Unavailable","display_short":"Unavailable","packages":"Unavailable","package_count":"Unavailable","shell":"fish","theme":"Unavailable","icons":"Unavailable","font":"Unavailable","cursor":"Unavailable","root_disk":"Unavailable","home_disk":"Unavailable"}')
+
+(defwidget applet_action_button [class selected enabled expand tooltip command icon text]
+  (button
+    :class {class}
+    :active {enabled}
+    :hexpand {expand}
+    :tooltip {tooltip}
+    :onclick {command}
+    (box :spacing 5 :halign "center"
+      (label :class "icon_glyph action_icon" :visible {icon != ""} :text {icon})
+      (label :text {text}))))
+
+(defwidget applet_device_row [class enabled tooltip command icon name detail meta state]
+  (button
+    :class {class}
+    :active {enabled}
+    :tooltip {tooltip}
+    :onclick {command}
+    (box
+      :orientation "h"
+      :space-evenly false
+      (label :class "device_icon icon_glyph" :text {icon})
+      (box
+        :class "device_copy"
+        :orientation "v"
+        :hexpand true
+        (label :class "device_name" :limit-width 25 :text {name} :halign "start")
+        (label :class "device_detail" :text {detail} :halign "start"))
+      (label :class "device_meta" :text {meta})
+      (label :class "device_state icon_glyph" :text {state}))))
+
+;; Static desktop identity plaque -------------------------------------------
+
+(defwindow desktop_plaque
+  :monitor 0
+  :stacking "bottom"
+  :focusable false
+  :exclusive false
+  :namespace "eww-desktop-plaque"
+  ;; Keep this as a small, directly anchored layer.  A full-monitor surface
+  ;; gets offset by Waybar's exclusive zone (y=48 on this desktop), which
+  ;; pushes a bottom-aligned child partly or completely off-screen.
+  :geometry (geometry :width "560px" :height "340px" :anchor "bottom right")
+  (box
+    :class "desktop_plaque_canvas"
+    :hexpand true
+    :vexpand true
+    (box
+      :class "plaque_position"
+      :halign "end"
+      :valign "end"
+      (desktop_plaque_widget))))
+
+(defwidget plaque_metric [caption value]
+  (box
+    :class "plaque_metric"
+    :orientation "v"
+    :space-evenly false
+    :hexpand true
+    :halign "center"
+    (label :class "plaque_metric_value" :text {value} :halign "center")
+    (label :class "plaque_metric_caption" :text {caption} :halign "center")))
+
+(defwidget plaque_detail [caption value]
+  (box
+    :class "plaque_detail"
+    :orientation "h"
+    :space-evenly false
+    :hexpand true
+    (label :class "plaque_detail_caption" :text {caption} :halign "start")
+    (label :class "plaque_detail_value" :limit-width 72 :text {value} :halign "start")))
+
+(defwidget desktop_plaque_widget []
+  (box
+    :class "desktop_plaque"
+    :orientation "h"
+    :space-evenly false
+
+    (box
+      :class "plaque_rail"
+      :orientation "v"
+      :space-evenly false
+      :halign "center"
+      :valign "fill"
+      (box
+        :class "plaque_mark"
+        :halign "center"
+        :valign "start"
+        (image
+          :path "${get_env("HOME")}/.config/eww/assets/arch-mark.svg"
+          :image-width 74
+          :image-height 74))
+      (box :class "plaque_rail_rule" :hexpand false :halign "center"))
+
+    (box
+      :class "plaque_body"
+      :orientation "v"
+      :space-evenly false
+      :hexpand true
+      (label :class "plaque_identity" :text {plaque_data.identity} :halign "center")
+      (label :class "plaque_platform" :text "${plaque_data.os}  ·  ${plaque_data.wm}" :halign "center")
+      (label :class "plaque_host" :limit-width 46 :text {plaque_data.host} :halign "center")
+
+      (box :class "plaque_header_rule")
+
+      (box
+        :class "plaque_metrics"
+        :orientation "h"
+        :space-evenly false
+        :spacing 16
+        (plaque_metric :caption "MEMORY" :value {plaque_data.memory})
+        (plaque_metric :caption "DISPLAY" :value {plaque_data.display_short})
+        (plaque_metric :caption "PACKAGES" :value {plaque_data.package_count}))
+
+      (box :class "plaque_detail_rule")
+      (plaque_detail :caption "CPU" :value {plaque_data.cpu})
+      (plaque_detail :caption "GPU" :value {plaque_data.gpu})
+      (plaque_detail :caption "KERNEL" :value {plaque_data.kernel})
+      (plaque_detail :caption "DISPLAY" :value {plaque_data.display})
+      (plaque_detail :caption "SHELL" :value {plaque_data.shell})
+      (plaque_detail :caption "STYLE" :value "${plaque_data.theme}  ·  ${plaque_data.icons}  ·  ${plaque_data.font}  ·  ${plaque_data.cursor}")
+      (plaque_detail :caption "STORAGE" :value " /  ${plaque_data.root_disk}    /HOME  ${plaque_data.home_disk}"))))
+
+;; Media dashboard ------------------------------------------------------------
+
+(defwindow dashboard
+  :monitor 0
+  :stacking "overlay"
+  ;; The media card has no keyboard input.  Keep keyboard focus in the active
+  ;; application so the compositor escape hatch remains available.
+  :focusable false
+  :exclusive false
+  :namespace "eww-media-overlay"
+  ;; This window is only as large as the player.  A full-monitor layer surface
+  ;; intercepts pointer input even where it is visually transparent.
+  :geometry (geometry :x "0px" :y "8px" :width "780px" :height "380px" :anchor "top center")
+  (spotify_card))
+
+(defwidget spotify_card []
+  (box
+      :class "media_shell panel_surface"
+      :orientation "h"
+      :space-evenly false
+      :spacing 22
+
+      (eventbox
+        :tooltip "Scroll the artwork to change system volume"
+        :onscroll "[ {} = up ] && $HOME/.config/eww/src/media_control.sh volume-step up; [ {} = down ] && $HOME/.config/eww/src/media_control.sh volume-step down"
+        (box
+          :class "album_img"
+          :hexpand false
+          :vexpand false
+          :halign "center"
+          :valign "center"
+          :style "background-image: url('file://${get_env("HOME")}/.config/eww/spotify_cache/album_art_modified.png'); border-color: ${media_data.tint};"))
+
+      (box
+        :class "media_content"
+        :orientation "v"
+        :space-evenly false
+        :hexpand true
+
+        (box
+          :class "track_header"
+          :orientation "v"
+          :space-evenly false
+          (box
+            :class "context_row"
+            :orientation "h"
+            :space-evenly false
+            (label
+              :class "eyebrow"
+              :style "color: ${media_data.tint};"
+              :text {media_data.status == "Paused" ? "PAUSED" : "NOW PLAYING"}
+              :halign "start"
+              :hexpand true)
+            (label
+              :class "source_badge"
+              :style "color: ${media_data.tint}; border-color: ${media_data.tint}; background-color: ${media_data.tint_soft};"
+              :text {media_data.source}
+              :halign "end")
+            (button
+              :class "media_close close_button icon_glyph"
+              :tooltip "Close player  •  Esc"
+              :onclick "$HOME/.config/eww/src/close_panel.sh dashboard"
+              (label :text "󰅖")))
+          (label :class "current_song" :limit-width 28 :text {media_data.title} :halign "start")
+          (label :class "current_artist" :limit-width 34 :text {media_data.artist} :halign "start")
+          (label :class "current_album" :limit-width 38 :text {media_data.album} :halign "start"))
+
+        (revealer
+          :reveal {media_data.lyrics_available}
+          :transition "slideup"
+          :duration "180ms"
+          (box
+            :class "lyrics_panel"
+            :orientation "v"
+            :space-evenly false
+            (label :class "lyric_context" :limit-width 44 :text {media_data.lyric_previous})
+            (label :class "lyric_current" :limit-width 44 :text {media_data.lyric_current})
+            (label :class "lyric_context" :limit-width 44 :text {media_data.lyric_next})))
+
+        (box
+          :class "controls_row"
+          :orientation "h"
+          :space-evenly false
+          (box
+            :class "transport_row"
+            :orientation "h"
+            :space-evenly false
+            :hexpand true
+            (button
+              :class {media_data.shuffle ? "transport_button active" : "transport_button"}
+              :tooltip "Toggle shuffle"
+              :onclick "$HOME/.config/eww/src/media_control.sh shuffle-toggle"
+              (label :class "icon_glyph" :text {media_data.shuffle ? "󰒟" : "󰒞"}))
+            (button
+              :class "transport_button"
+              :tooltip "Previous track"
+              :onclick "$HOME/.config/eww/src/media_control.sh previous"
+              (label :class "icon_glyph" :text "󰒮"))
+            (button
+              :class "play_button"
+              :style "background-color: ${media_data.tint}; color: ${media_data.accent_text};"
+              :tooltip {media_data.status == "Playing" ? "Pause" : "Play"}
+              :onclick "$HOME/.config/eww/src/media_control.sh play-pause"
+              (label :class "icon_glyph" :text {media_data.status == "Playing" ? "󰏤" : "󰐊"}))
+            (button
+              :class "transport_button"
+              :tooltip "Next track"
+              :onclick "$HOME/.config/eww/src/media_control.sh next"
+              (label :class "icon_glyph" :text "󰒭"))
+            (button
+              :class {media_data.loop == "None" ? "transport_button" : "transport_button active"}
+              :tooltip "Toggle repeat"
+              :onclick "$HOME/.config/eww/src/media_control.sh loop-toggle"
+              (label :class "icon_glyph" :text {media_data.loop == "None" ? "󰑗" : "󰑘"})))
+
+          (box
+            :class "volume_control"
+            :orientation "h"
+            :space-evenly false
+            (button
+              :class {media_data.muted ? "volume_button muted icon_glyph" : "volume_button icon_glyph"}
+              :tooltip {media_data.muted ? "Unmute" : "Mute"}
+              :onclick "$HOME/.config/eww/src/media_control.sh mute"
+              (label :text {media_data.muted ? "󰝟" : (media_data.volume > 55 ? "󰕾" : "󰖀")}))
+            (scale
+              :class "volume_scale"
+              :value {media_data.volume}
+              :orientation "h"
+              :min 0
+              :max 150
+              :round-digits 0
+              :tooltip "System volume: ${media_data.volume}%"
+              :onchange "$HOME/.config/eww/src/media_control.sh volume-set {}")
+            (label :class "volume_value" :text "${media_data.volume}%")))
+
+        (box
+          :class "timeline"
+          :orientation "h"
+          :space-evenly false
+          (label :class "time_label elapsed" :text {media_data.position} :halign "start")
+          (scale
+            :class "progress_song"
+            :css "trough highlight { background-color: ${media_data.tint}; } slider { border-color: ${media_data.tint}; }"
+            :value {media_data.progress}
+            :orientation "h"
+            :min 0
+            :max 100
+            :hexpand true
+            :onchange "$HOME/.config/eww/src/media_control.sh seek {}")
+          (label :class "time_label duration" :text {media_data.length} :halign "end")))))
+
+;; Wi-Fi applet ---------------------------------------------------------------
+
+(defwindow waybar_dismiss
+  :monitor 0
+  :stacking "overlay"
+  ;; This surface intentionally owns pointer input over Waybar while an
+  ;; applet is open, so the originating module can be clicked to close it.
+  :focusable false
+  :exclusive false
+  :namespace "eww-waybar-dismiss"
+  :geometry (geometry :width "100%" :height "48px" :anchor "top left")
+  (eventbox
+    :hexpand true
+    :vexpand true
+    :onclick "$HOME/.config/eww/src/close_panel.sh all"
+    (box :class "waybar_dismiss_surface" :hexpand true :vexpand true)))
+
+(defwindow wifi_panel
+  :monitor 0
+  :stacking "overlay"
+  :focusable true
+  :exclusive false
+  :namespace "eww-wifi-overlay"
+  :geometry (geometry :width "420px" :height "500px" :anchor "top left")
+  (box :class "wifi_position" :halign "start" :valign "start" (wifi_applet)))
+
+(defwidget wifi_applet []
+  (eventbox
+    :onclick "true"
+    (box
+      :class "applet_shell wifi_applet panel_surface"
+      :orientation "v"
+      :space-evenly false
+
+      (box
+        :class "connection_card"
+        :orientation "h"
+        :space-evenly false
+        (box
+          :class "connection_copy"
+          :orientation "v"
+          :hexpand true
+          (label :class "connection_name" :limit-width 28 :text {wifi_data.connected ? wifi_data.ssid : (wifi_data.enabled ? "Not connected" : "Wi-Fi is off")} :halign "start")
+          (label :class "connection_detail" :text {wifi_data.connected ? "${wifi_data.signal}% signal" : (wifi_data.enabled ? "Choose a network below" : "Turn Wi-Fi on to scan")} :halign "start")
+          (label :class "connection_ip" :text "IPv4  ${wifi_data.ip}" :halign "start"))
+        (button
+          :class "close_button icon_glyph"
+          :tooltip "Close panel"
+          :onclick "$HOME/.config/eww/src/close_panel.sh wifi_panel"
+          (label :text "󰅖")))
+
+      (box
+        :class "applet_actions"
+        :orientation "h"
+        :space-evenly false
+        :spacing 7
+        (applet_action_button
+          :class {wifi_busy == "toggle" ? "applet_action busy" : (wifi_data.enabled ? "applet_action active" : "applet_action")}
+          :selected {wifi_data.enabled}
+          :enabled {wifi_busy == ""}
+          :expand true
+          :tooltip {wifi_data.enabled ? "Turn Wi-Fi off" : "Turn Wi-Fi on"}
+          :command "$HOME/.config/eww/src/wifi_control.sh toggle"
+          :icon {wifi_busy == "toggle" ? "󰔟" : "󰖩"}
+          :text {wifi_busy == "toggle" ? "Working" : (wifi_data.enabled ? "On" : "Off")})
+        (applet_action_button
+          :class {wifi_busy == "scan" ? "applet_action busy" : "applet_action"}
+          :selected false
+          :enabled {wifi_busy == "" && wifi_data.enabled}
+          :expand true
+          :tooltip "Rescan nearby networks"
+          :command "$HOME/.config/eww/src/wifi_control.sh rescan"
+          :icon {wifi_busy == "scan" ? "󰔟" : "󰑓"}
+          :text {wifi_busy == "scan" ? "Scanning" : "Scan"})
+        (applet_action_button
+          :class {wifi_busy == "disconnect" ? "applet_action icon_only busy" : "applet_action icon_only"}
+          :selected false
+          :enabled {wifi_busy == "" && wifi_data.connected}
+          :expand false
+          :tooltip "Disconnect current network"
+          :command "$HOME/.config/eww/src/wifi_control.sh disconnect"
+          :icon {wifi_busy == "disconnect" ? "󰔟" : "󰖪"}
+          :text "")
+        (applet_action_button
+          :class "applet_action advanced"
+          :selected false
+          :enabled {wifi_busy == ""}
+          :expand true
+          :tooltip "Open full NetworkManager settings"
+          :command "$HOME/.config/eww/src/wifi_control.sh advanced"
+          :icon "󰒓"
+          :text "Settings"))
+
+      (revealer
+        :reveal {wifi_selected != ""}
+        :transition "slidedown"
+        :duration "180ms"
+        (box
+          :class "password_card"
+          :orientation "v"
+          :space-evenly false
+          (box :orientation "h" :space-evenly false
+            (label :class "password_title" :text "Network password" :halign "start" :hexpand true)
+            (button
+              :class "password_cancel icon_glyph"
+              :tooltip "Cancel"
+              :onclick "eww update wifi_selected='' wifi_password=''"
+              (label :text "󰅖")))
+          (box :class "password_row" :orientation "h" :space-evenly false :spacing 7
+            (input
+              :class "password_input"
+              :value {wifi_password}
+              :password true
+              :hexpand true
+              :onchange "eww update 'wifi_password={}'"
+              :onaccept "eww update 'wifi_password={}' && $HOME/.config/eww/src/wifi_control.sh connect-password '${wifi_selected}'")
+            (button
+              :class "password_connect"
+              :active {wifi_busy == ""}
+              :tooltip "Connect"
+              :onclick "$HOME/.config/eww/src/wifi_control.sh connect-password '${wifi_selected}'"
+              (label :text {wifi_busy == "connect:${wifi_selected}" ? "Connecting…" : "Connect"})))))
+
+      (box
+        :class "section_heading"
+        :orientation "h"
+        (label :class "section_title" :text "AVAILABLE NETWORKS" :halign "start")
+        (label :class "section_state" :text {wifi_busy == "scan" ? "Refreshing…" : (wifi_data.enabled ? "Select to connect" : "Radio disabled")} :halign "end" :hexpand true))
+
+      (scroll
+        :class "device_scroll"
+        :vexpand true
+        (box
+          :class "device_list"
+          :orientation "v"
+          :space-evenly false
+          (for network in {wifi_data.networks}
+            (applet_device_row
+              :class {network.active ? "device_row active" : "device_row"}
+              :enabled {wifi_busy == ""}
+              :tooltip {network.active ? "Disconnect from ${network.ssid}" : (network.known ? "Connect to saved network ${network.ssid}" : (network.simple_password ? "Enter password for ${network.ssid}" : (network.locked ? "Open advanced settings for ${network.ssid}" : "Connect to ${network.ssid}")))}
+              :command {network.active ? "$HOME/.config/eww/src/wifi_control.sh disconnect" : (network.known || !network.locked ? "$HOME/.config/eww/src/wifi_control.sh connect '${network.id}'" : (network.simple_password ? "eww update wifi_selected='${network.id}' wifi_password=''" : "$HOME/.config/eww/src/wifi_control.sh enterprise"))}
+              :icon {network.icon}
+              :name {network.ssid}
+              :detail {network.known ? "${network.security}  •  Saved" : network.security}
+              :meta "${network.signal}%"
+              :state {wifi_busy == "connect:${network.id}" ? "󰔟" : (network.active ? "󰄬" : (network.locked ? "󰌾" : "󰿆"))})))))))
+
+;; Bluetooth applet -----------------------------------------------------------
+
+(defwindow bluetooth_panel
+  :monitor 0
+  :stacking "overlay"
+  :focusable false
+  :exclusive false
+  :namespace "eww-bluetooth-overlay"
+  :geometry (geometry :width "420px" :height "500px" :anchor "top left")
+  (box :class "bluetooth_position" :halign "start" :valign "start" (bluetooth_applet)))
+
+(defwidget bluetooth_applet []
+  (eventbox
+    :onclick "true"
+    (box
+      :class "applet_shell bluetooth_applet panel_surface"
+      :orientation "v"
+      :space-evenly false
+
+      (box
+        :class "connection_card"
+        :orientation "h"
+        :space-evenly false
+        (box
+          :class "connection_copy"
+          :orientation "v"
+          :hexpand true
+          (label :class "connection_name" :limit-width 28 :text {bluetooth_data.controller} :halign "start")
+          (label :class "connection_detail" :text {bluetooth_data.powered ? (bluetooth_data.discovering ? "Scanning for nearby devices" : (bluetooth_data.connected_count > 0 ? "${bluetooth_data.connected_count} device connected" : "Bluetooth is on")) : "Bluetooth is off"} :halign "start")
+          (label :class "connection_ip" :text {bluetooth_data.powered ? "Select a device below to connect" : "Turn Bluetooth on to manage devices"} :halign "start"))
+        (button
+          :class "close_button icon_glyph"
+          :tooltip "Close panel"
+          :onclick "$HOME/.config/eww/src/close_panel.sh bluetooth_panel"
+          (label :text "󰅖")))
+
+      (box
+        :class "applet_actions bluetooth_actions"
+        :orientation "h"
+        :space-evenly false
+        :spacing 7
+        (applet_action_button
+          :class {bluetooth_busy == "toggle" ? "applet_action busy" : (bluetooth_data.powered ? "applet_action active" : "applet_action")}
+          :selected {bluetooth_data.powered}
+          :enabled {bluetooth_busy == ""}
+          :expand true
+          :tooltip {bluetooth_data.powered ? "Turn Bluetooth off" : "Turn Bluetooth on"}
+          :command "$HOME/.config/eww/src/bluetooth_control.sh toggle"
+          :icon {bluetooth_busy == "toggle" ? "󰔟" : "󰂯"}
+          :text {bluetooth_busy == "toggle" ? "Working" : (bluetooth_data.powered ? "On" : "Off")})
+        (applet_action_button
+          :class {bluetooth_busy == "scan" || bluetooth_data.discovering ? "applet_action active busy" : "applet_action"}
+          :selected {bluetooth_data.discovering}
+          :enabled {bluetooth_busy == "" && bluetooth_data.powered}
+          :expand true
+          :tooltip "Scan for devices for 10 seconds"
+          :command "$HOME/.config/eww/src/bluetooth_control.sh scan"
+          :icon {bluetooth_busy == "scan" || bluetooth_data.discovering ? "󰔟" : "󰑐"}
+          :text {bluetooth_busy == "scan" || bluetooth_data.discovering ? "Scanning" : "Scan"})
+        (applet_action_button
+          :class "applet_action advanced"
+          :selected false
+          :enabled {bluetooth_busy == ""}
+          :expand true
+          :tooltip "Open full Blueman Manager"
+          :command "$HOME/.config/eww/src/bluetooth_control.sh advanced"
+          :icon "󰒓"
+          :text "Settings"))
+
+      (box
+        :class "section_heading"
+        :orientation "h"
+        (label :class "section_title" :text "BLUETOOTH DEVICES" :halign "start")
+        (label :class "section_state" :text {bluetooth_busy == "scan" ? "Refreshing…" : (bluetooth_data.powered ? "Select to connect" : "Radio disabled")} :halign "end" :hexpand true))
+
+      (scroll
+        :class "device_scroll bluetooth_device_scroll"
+        :vexpand true
+        (box
+          :class "device_list"
+          :orientation "v"
+          :space-evenly false
+          (for device in {bluetooth_data.devices}
+            (applet_device_row
+              :class {device.connected ? "device_row active" : "device_row"}
+              :enabled {bluetooth_busy == ""}
+              :tooltip {device.connected ? "Disconnect ${device.name}" : (device.paired ? "Connect ${device.name}" : "Pair with ${device.name}")}
+              :command "$HOME/.config/eww/src/bluetooth_control.sh connect '${device.address}'"
+              :icon {device.icon}
+              :name {device.name}
+              :detail {device.trusted ? "${device.detail}  •  Trusted" : device.detail}
+              :meta {device.battery_text}
+              :state {bluetooth_busy == "connect:${device.address}" ? "󰔟" : (device.connected ? "󰄬" : (device.paired ? "󰌾" : "󰐕"))})))))))
+
+;; Pacman update review ------------------------------------------------------
+
+(defwindow pacman_panel
+  :monitor 0
+  :stacking "overlay"
+  :focusable false
+  :exclusive false
+  :namespace "eww-pacman-overlay"
+  :geometry (geometry :width "530px" :height "560px" :anchor "top left")
+  (box :class "pacman_position" :halign "start" :valign "start" (pacman_applet)))
+
+(defwidget pacman_applet []
+  (eventbox
+    :onclick "true"
+    (box
+      :class "pacman_shell panel_surface"
+      :orientation "v"
+      :space-evenly false
+
+      (box
+        :class {pacman_data.status == "failed" || pacman_data.status == "error" ? "pacman_status_card failed" : (pacman_data.status == "running" ? "pacman_status_card running" : "pacman_status_card")}
+        :orientation "h"
+        :space-evenly false
+        (box
+          :class "pacman_status_copy"
+          :orientation "v"
+          :hexpand true
+          (label
+            :class "pacman_status_title"
+            :text {pacman_data.status == "checking" ? "Checking for updates…" : (pacman_data.status == "failed" || pacman_data.status == "error" ? "Update unavailable" : (pacman_data.status == "running" ? "Update in progress" : (pacman_data.count > 0 ? "${pacman_data.count} package updates ready" : "System is up to date")))}
+            :halign "start")
+          (label
+            :class "pacman_status_detail"
+            :text {pacman_data.status == "failed" || pacman_data.status == "error" ? pacman_data.error : pacman_data.message}
+            :halign "start"))
+        (box
+          :class "pacman_alerts"
+          :orientation "v"
+          :halign "end"
+          :visible {pacman_data.kernel_count > 0 || pacman_data.dkms_count > 0}
+          (label
+            :class "pacman_alert kernel_alert"
+            :visible {pacman_data.kernel_count > 0}
+            :text {pacman_data.kernel_notice}
+            :halign "end")
+          (label
+            :class "pacman_alert dkms_alert"
+            :visible {pacman_data.dkms_count > 0}
+            :text {pacman_data.dkms_notice}
+            :halign "end")))
+
+      (revealer
+        :reveal {pacman_data.count > 0}
+        :transition "slidedown"
+        :duration "180ms"
+        (box
+          :class "pacman_package_section"
+          :orientation "v"
+          :space-evenly false
+          (box
+            :class "pacman_section_heading"
+            :orientation "h"
+            (label :class "pacman_section_title" :text "PACKAGES" :halign "start")
+            (label :class "pacman_section_state" :text {pacman_data.status == "running" ? "Installing…" : "Scroll to review"} :halign "end" :hexpand true))
+          (scroll
+            :class "pacman_package_scroll"
+            :vexpand true
+            (box
+              :class "pacman_package_list"
+              :orientation "v"
+              :space-evenly false
+              (for package in {pacman_data.package_items}
+                (box
+                  :class {package.kind == "kernel" ? "pacman_package_row kernel" : (package.kind == "dkms" ? "pacman_package_row dkms" : "pacman_package_row")}
+                  :orientation "h"
+                  :space-evenly false
+                  (label :class "pacman_package_marker icon_glyph" :text {package.kind == "kernel" ? "󰅖" : (package.kind == "dkms" ? "󰒓" : "•")})
+                  (label :class "pacman_package_text" :text {package.text} :halign "start" :hexpand true)))))))
+
+      (revealer
+        :reveal {pacman_data.status == "failed" || pacman_data.status == "error"}
+        :transition "slidedown"
+        :duration "180ms"
+        (box
+          :class "pacman_failure_box"
+          :orientation "v"
+          :space-evenly false
+          (label :class "pacman_failure_title" :text "Last-run details" :halign "start")
+          (label :class "pacman_failure_log" :limit-width 76 :text {pacman_data.log_tail != "" ? pacman_data.log_tail : pacman_data.error} :halign "start")))
+
+      (label
+        :class "pacman_question"
+        :visible {pacman_data.status == "available"}
+        :text "Proceed with the full system update?"
+        :halign "start")
+
+      (box
+        :class "pacman_actions"
+        :orientation "h"
+        :space-evenly false
+        :spacing 8
+        (button
+          :class "pacman_secondary"
+          :tooltip "Close without updating"
+          :onclick "$HOME/.config/eww/src/close_panel.sh pacman_panel"
+          (label :text {pacman_data.status == "failed" || pacman_data.status == "error" ? "Close" : "No, cancel"}))
+        (button
+          :class "pacman_clear"
+          :visible {pacman_data.status == "failed" || pacman_data.status == "error"}
+          :tooltip "Clear the persistent failure indicator after resolving it manually"
+          :onclick "$HOME/.config/eww/src/pacman_control.py clear-failure && $HOME/.config/eww/src/close_panel.sh pacman_panel"
+          (label :text "Clear failure"))
+        (button
+          :class "pacman_primary"
+          :visible {pacman_data.status == "available"}
+          :tooltip "Run sudo pacman -Syu in the background"
+          :onclick "$HOME/.config/eww/src/pacman_control.py start && $HOME/.config/eww/src/close_panel.sh pacman_panel"
+          (label :text "Yes, update"))
+        (button
+          :class "pacman_secondary"
+          :visible {pacman_data.status == "running"}
+          :tooltip "Leave the update running in the background"
+          :onclick "$HOME/.config/eww/src/close_panel.sh pacman_panel"
+          (label :text "Close"))))))

@@ -1,0 +1,389 @@
+/* Shared geometry and interaction rules.  The two mode files only provide
+ * palettes, so switching modes cannot accidentally carry stale spacing with
+ * it. */
+
+* {
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  color: @text;
+  font-family: "Google Sans", "JetBrainsMono Nerd Font", "Noto Sans", sans-serif;
+  font-size: 14px;
+}
+
+/* One continuous rail across the top.  The mode-specific surface color is
+ * applied here rather than to each module group, so the bar reads as one
+ * deliberate strip instead of three floating islands. */
+window#waybar {
+  background-color: @surface;
+  border-bottom: 1px solid @outline;
+  box-shadow: 0 2px 12px @shadow;
+}
+
+window#waybar > box {
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+window#waybar.hidden {
+  opacity: 0.25;
+}
+
+.modules-left,
+.modules-center,
+.modules-right {
+  margin: 0;
+  padding: 0 8px;
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.modules-left { padding-left: 10px; padding-right: 7px; }
+.modules-center {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+.modules-right { padding-left: 7px; padding-right: 10px; }
+
+tooltip {
+  background-color: @tooltip-surface;
+  border: 1px solid @tooltip-outline;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px @shadow;
+  padding: 0;
+}
+
+tooltip > box { padding: 9px 11px; }
+
+tooltip label {
+  padding: 0;
+  margin: 0;
+  color: @text;
+  font-family: "Google Sans", "JetBrainsMono Nerd Font", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* Privacy owns a live GtkBox of application icons/names, not the normal label. */
+tooltip .privacy-tooltip { padding: 0; }
+tooltip .privacy-tooltip > box { margin-top: 7px; }
+tooltip .privacy-tooltip image { margin-right: 7px; color: @coral; }
+tooltip .tooltip-heading { color: @accent; font-weight: 700; margin-bottom: 3px; }
+tooltip scrollbar { margin-left: 8px; }
+tooltip scrollbar slider {
+  background-color: @muted;
+  border-radius: 4px;
+  min-width: 3px;
+  min-height: 24px;
+}
+
+button {
+  min-width: 0;
+  padding: 0;
+  background-color: transparent;
+  color: @text;
+  border: none;
+  border-radius: 8px;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+button:hover {
+  background-color: @surface-hover;
+  color: @accent;
+}
+
+button:active { background-color: @accent-soft; }
+
+/* Every compact module gets the same optical gutter.  Modules containing
+ * private-use glyphs opt into the icon-capable Nerd Font explicitly; ordinary
+ * mixed text modules retain Google Sans through the global rule. */
+#network,
+#custom-network-status,
+#backlight,
+#pulseaudio,
+#bluetooth,
+#custom-updates,
+#custom-notification,
+#privacy,
+#custom-capslock,
+#custom-psad,
+#custom-battery-guarded,
+#cpu,
+#memory,
+#disk,
+#custom-temperature-guarded,
+#power-profiles-daemon,
+#custom-hyprsunset {
+  margin: 0 1px;
+  padding: 0 4px;
+  color: @muted;
+  border-radius: 8px;
+}
+
+#custom-wlogout,
+#network,
+#custom-network-status,
+#backlight,
+#pulseaudio,
+#bluetooth,
+#custom-updates,
+#custom-notification,
+#custom-spotify,
+#custom-codex-usage,
+#power-profiles-daemon,
+#custom-hyprsunset,
+#custom-wallpaper,
+#clock {
+  transition-property: background-color, color, border-color;
+  transition-duration: 160ms;
+}
+
+#network:hover,
+#custom-network-status:hover,
+#backlight:hover,
+#pulseaudio:hover,
+#bluetooth:hover,
+#custom-updates:hover,
+#custom-notification:hover,
+#custom-spotify:hover,
+#power-profiles-daemon:hover,
+#custom-hyprsunset:hover,
+#custom-wallpaper:hover,
+#clock:hover {
+  background-color: @surface-hover;
+  color: @text;
+}
+
+/* Icon alignment is intentionally centralized instead of tuning each glyph
+ * in isolation; this keeps the visual weight stable across both themes. */
+#custom-wlogout,
+#network,
+#custom-network-status,
+#bluetooth,
+#custom-notification,
+#power-profiles-daemon,
+#custom-wallpaper {
+  font-family: "JetBrainsMono Nerd Font", "Noto Sans", sans-serif;
+}
+
+#custom-wlogout {
+  min-width: 0;
+  margin-right: 8px;
+  padding: 0 5px;
+  color: @coral;
+  border-radius: 6px;
+  font-size: 18px;
+}
+
+#custom-wlogout:hover { background-color: @surface-hover; color: @accent; }
+
+/* Network text can include a private-use Wi-Fi glyph.  Keep the whole module
+ * on the icon-capable face so a missing glyph cannot fall back to a CJK-looking
+ * substitute in the middle of the interface name. */
+#network,
+#custom-network-status {
+  font-family: "JetBrainsMono Nerd Font", "Noto Sans", sans-serif;
+  padding-left: 5px;
+  padding-right: 6px;
+}
+
+#group-notifications {
+  margin-right: 5px;
+  padding-right: 5px;
+  border-right: 1px solid @divider;
+}
+
+#custom-notification { padding-right: 4px; }
+#network,
+#custom-network-status { margin-right: 5px; }
+
+#window {
+  min-width: 0;
+  padding: 0 2px 0 7px;
+  color: @text;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#window.empty { min-width: 0; margin: 0; padding: 0; }
+
+#custom-spotify {
+  margin-right: 7px;
+  padding: 0 8px 0 2px;
+  color: @text;
+  border-right: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#custom-days-until-ap {
+  padding: 0 2px;
+  color: #d32f2f;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+#privacy { margin-right: 0; padding-left: 2px; padding-right: 2px; }
+#privacy-item { padding: 0 2px; color: @danger; }
+
+#custom-capslock,
+#custom-capslock > label {
+  min-width: 0;
+  color: @warning;
+}
+
+#custom-capslock {
+  margin: 0 2px;
+  padding: 0 5px;
+  font-family: "JetBrainsMono Nerd Font", "Noto Sans", sans-serif;
+}
+
+#custom-capslock > label {
+  margin: 0;
+  padding: 0;
+}
+
+#custom-codex-usage {
+  min-width: 0;
+  margin: 0 3px;
+  padding: 0 3px;
+  background-color: @surface-alt;
+  color: @muted;
+  border: 1px solid @divider;
+  border-radius: 7px;
+  font-family: "JetBrainsMono Nerd Font", monospace;
+  font-size: 8px;
+  font-weight: 600;
+}
+
+#custom-codex-usage:hover { background-color: @surface-hover; border-color: @outline; }
+#custom-codex-usage.codex-low { color: @success; border-color: @success-border; }
+#custom-codex-usage.codex-medium { color: @warning; border-color: @warning-border; }
+#custom-codex-usage.codex-high {
+  color: @coral;
+  background-color: @coral-soft;
+  border-color: @coral-border;
+}
+#custom-codex-usage.codex-critical,
+#custom-codex-usage.codex-error {
+  background-color: @danger-soft;
+  color: @danger;
+  border-color: @danger-border;
+  font-weight: 800;
+}
+
+#custom-psad { padding-left: 2px; padding-right: 2px; }
+#custom-psad.psad-clean,
+#custom-psad.psad-no-alerts { color: @success; }
+#custom-psad.psad-alert,
+#custom-psad.psad-error { color: @danger; }
+#custom-psad.psad-stale { color: @warning; }
+#custom-psad.psad-inactive,
+#custom-psad.psad-unknown { color: @dim; }
+
+#group-stats {
+  margin-left: 3px;
+  padding-left: 4px;
+  border-left: 1px solid @divider;
+}
+#group-computerinfo { margin: 0; padding: 0; }
+
+#group-stats #custom-battery-guarded,
+#group-stats #group-computerinfo,
+#group-stats #cpu,
+#group-stats #memory,
+#group-stats #disk,
+#group-stats #custom-temperature-guarded,
+#group-stats #power-profiles-daemon,
+#group-stats #custom-hyprsunset {
+  margin: 0;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+#custom-battery-guarded {
+  min-width: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+  color: @text;
+  font-weight: 600;
+}
+#custom-battery-guarded.good { color: @success; }
+#custom-battery-guarded.warning { color: @warning; }
+#custom-battery-guarded.critical { background-color: @danger-soft; color: @danger; }
+#custom-battery-guarded.kernel-deadlock,
+#custom-temperature-guarded.kernel-deadlock {
+  min-width: 0;
+  background-color: @danger-soft;
+  color: @danger;
+  font-size: 10px;
+  font-weight: 800;
+}
+#custom-battery-guarded.sensor-timeout,
+#custom-temperature-guarded.sensor-timeout { color: @warning; }
+
+#power-profiles-daemon.performance { color: @coral; }
+#power-profiles-daemon.balanced { color: @accent; }
+#power-profiles-daemon.power-saver { color: @success; }
+#custom-hyprsunset.on { color: @coral; }
+#network.disconnected,
+#custom-network-status.disconnected,
+#bluetooth.disabled,
+#pulseaudio.muted { color: @dim; }
+
+#custom-updates.available { color: @accent; }
+#custom-updates.running {
+  color: @warning;
+  background-color: @accent-soft;
+}
+#custom-updates.failed,
+#custom-updates.error {
+  background-color: @danger-soft;
+  color: @danger;
+  border: 1px solid @danger-border;
+  font-weight: 800;
+}
+#custom-updates.kernel { color: @danger; }
+#custom-updates.dkms { color: @warning; }
+#custom-updates.kernel.dkms { color: @danger; }
+
+#custom-wallpaper {
+  min-width: 0;
+  margin: 0 2px;
+  padding: 0 3px;
+  color: @accent;
+  border-radius: 6px;
+  font-size: 13px;
+}
+#custom-wallpaper:hover { background-color: @surface-hover; color: @coral; }
+
+#clock {
+  padding: 0 2px;
+  color: @text;
+  border-radius: 8px;
+  font-family: "JetBrainsMono Nerd Font", monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ChatGPT stays alive on its private special workspace after Meta+Q. */
+#custom-chatgpt-background {
+  font-family: "JetBrainsMono Nerd Font", "Noto Sans", sans-serif;
+  padding: 0 7px;
+  margin: 5px 2px;
+  border-radius: 8px;
+  transition-property: background-color, color;
+  transition-duration: 160ms;
+}
+#custom-chatgpt-background:hover { background-color: @surface-hover; }
+#custom-chatgpt-background.open { color: @accent; }
+#custom-chatgpt-background.background { color: @success; }
+#custom-chatgpt-background.stopped { color: @dim; }
+#custom-chatgpt-background.error { color: @danger; }

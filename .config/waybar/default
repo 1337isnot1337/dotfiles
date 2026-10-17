@@ -1,0 +1,271 @@
+{
+    "custom/wlogout": {
+        "format": "",
+        "interval": "once",
+        "on-click": "sleep 0.1 && wlogout -c 5 -r 5 -p layer-shell",
+        "tooltip-format": "<b>Session</b>\n\nLog out, lock, suspend or power off\n\n<small>Left click: open session menu</small>"
+    },
+    "hyprland/window": {
+        "format": "{initialClass}",
+        "tooltip-format": "{title}",
+        "icon": false,
+        "max-length": 20,
+        "rewrite": {
+            "librewolf": " LibreWolf",
+            "firefox": " Firefox",
+            "VScodium": " VSCodium",
+            "spotify": " Spotify",
+            "spotify Free": " Spotify",
+            "discord": " Discord",
+            "kitty": " Kitty",
+            "Tor Browser": "󰯆 Tor",
+            "nm-connection-editor": " Network",
+            "org.kde.kate": " Kate",
+            "libreoffice-startcenter": "󰈙 Libreoffice"
+        }
+    },
+    "clock": {
+        "format": "{:%T \n%D}",
+        "interval": 1,
+        "format-alt": "{:%A, %B %d, %Y (%R)}",
+        "tooltip-format": "<b>{:%A, %B %d}</b>\n\n<span font_family='JetBrainsMono Nerd Font' size='small'>{calendar}</span>\n<small>Right click: month / year calendar\nScroll: navigate calendar</small>",
+        "calendar": {
+            "mode": "month",
+            "mode-mon-col": 3,
+            "weeks-pos": "right",
+            "on-scroll": 1,
+            "format": {
+                "months": "<b>{}</b>",
+                "days": "{}",
+                "weeks": "<small>W{}</small>",
+                "weekdays": "<small>{}</small>",
+                "today": "<b><u>{}</u></b>"
+            }
+        },
+        "actions": {
+            "on-click-right": "mode",
+            "on-scroll-up": "shift_up",
+            "on-scroll-down": "shift_down"
+        }
+    },
+    "cpu": {
+        "format": " {usage}%",
+        "on-click": "kitty btop",
+        "tooltip": true
+    },
+    "memory": {
+        "format": "󰍜 {}%",
+        "tooltip": true,
+        "tooltip-format": "Memory\n\n{percentage}% in use · {used:.1f} / {total:.1f} GiB\nAvailable · {avail:.1f} GiB\nSwap · {swapUsed:.1f} / {swapTotal:.1f} GiB"
+    },
+    "disk": {
+        "format": "󰋊 {percentage_used}%",
+        "tooltip-format": "Storage\n\n{percentage_used}% in use · {used} / {total}\nAvailable · {free}\nMount · {path}"
+    },
+    "custom/temperature-guarded": {
+        "exec": "$HOME/.local/bin/acpi-safe-hardware-status waybar-temperature | python3 $HOME/.config/waybar/scripts/tooltip-style.py temperature",
+        "format": "{}",
+        "interval": 5,
+        "return-type": "json",
+        "tooltip": true,
+        "escape": false
+    },
+    "custom/battery-guarded": {
+        "exec": "$HOME/.local/bin/acpi-safe-hardware-status waybar-battery | python3 $HOME/.config/waybar/scripts/tooltip-style.py battery",
+        "format": "{}",
+        "interval": 5,
+        "return-type": "json",
+        "tooltip": true,
+        "escape": false
+    },
+    "custom/network-status": {
+        "exec": "$HOME/.config/waybar/scripts/network-status.sh",
+        "interval": 1,
+        "return-type": "json",
+        "format": "{text}",
+        "escape": false,
+        "tooltip": true,
+        "on-click": "$HOME/.config/eww/src/toggle_panel.sh wifi_panel >/dev/null 2>&1"
+    },
+    "pulseaudio": {
+        "tooltip": true,
+        "tooltip-format": "Audio output\n\nVolume · {volume}%\n{desc}\n\nLeft click: audio settings\nRight click: toggle mute\nScroll: adjust volume",
+        "format": "{icon} {volume}%",
+        "format-bluetooth": "{icon} {volume}%",
+        "format-muted": " 0%",
+        "format-icons": {
+            "default": [
+                "",
+                "󰕾",
+                ""
+            ]
+        },
+        "scroll-step": 1,
+        "on-click": "setsid -f pavucontrol >/dev/null 2>&1",
+        "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+        "ignored-sinks": [
+            "Easy Effects Sink"
+        ]
+    },
+    "bluetooth": {
+        "format": "",
+        "format-disabled": "󰂲",
+        "format-connected": " {num_connections}",
+        "tooltip-format": "Bluetooth\n\n{controller_alias}\n{controller_address}\n\nLeft click: Bluetooth controls",
+        "tooltip-format-on": "Bluetooth\n\nOn · no connected devices\n{controller_alias}\n{controller_address}\n\nLeft click: Bluetooth controls",
+        "tooltip-format-off": "Bluetooth\n\nPowered off\n{controller_alias}\n\nLeft click: Bluetooth controls",
+        "tooltip-format-disabled": "Bluetooth\n\nRadio blocked\n\nLeft click: Bluetooth controls",
+        "tooltip-format-no-controller": "Bluetooth\n\nNo adapter available\n\nLeft click: Bluetooth controls",
+        "tooltip-format-connected": "Bluetooth\n\n{num_connections} connected · {controller_alias}\n{controller_address}\n\n{device_enumerate}\n\nLeft click: Bluetooth controls",
+        "tooltip-format-enumerate-connected": "{device_alias}\n{device_address}",
+        "tooltip-format-enumerate-connected-battery": "{device_alias} · {device_battery_percentage}% battery\n{device_address}",
+        "on-click": "$HOME/.config/eww/src/toggle_panel.sh bluetooth_panel >/dev/null 2>&1"
+    },
+    "custom/wallpaper": {
+        "format": "󰸉",
+        "on-click": "bash $HOME/.config/waybar/scripts/wallpaper.sh",
+        "tooltip": true,
+        "tooltip-format": "<b>Wallpaper</b>\n\nCycle to a new background\n\n<small>Left click: change wallpaper</small>"
+    },
+    "custom/notification": {
+        "escape": false,
+        "exec": "swaync-client -swb | python3 $HOME/.config/waybar/scripts/tooltip-style.py notification",
+        "exec-if": "which swaync-client",
+        "format": "{icon}",
+        "format-icons": {
+            "dnd-inhibited-none": "󰂚 <sup></sup>",
+            "dnd-inhibited-notification": "󰂚<span foreground='#f38ba8'><sup></sup></span>",
+            "dnd-none": "󰂛",
+            "dnd-notification": "󰂛<span foreground='#f38ba8'><sup></sup></span>",
+            "inhibited-none": "󰂚<sup>󰜺</sup>",
+            "inhibited-notification": "󰵙<span foreground='#f38ba8'><sup></sup></span>",
+            "none": "󰂚",
+            "notification": "󰂚<span foreground='#f38ba8'><sup></sup></span>"
+        },
+        "on-click": "sleep 0.1 && swaync-client -t -sw",
+        "on-click-right": "sleep 0.1 && swaync-client -d -sw",
+        "return-type": "json",
+        "tooltip": true
+    },
+    "group/stats": {
+        "orientation": "horizontal",
+        "drawer": {
+            "transition-duration": 200,
+            "children-class": "stats-item",
+            "transition-left-to-right": false
+        },
+        "modules": [
+            "custom/battery-guarded",
+            "group/computerinfo",
+            "power-profiles-daemon",
+            "custom/hyprsunset"
+        ]
+    },
+    "group/computerinfo": {
+        "orientation": "horizontal",
+        "drawer": {
+            "transition-duration": 200,
+            "children-class": "comp-item",
+            "transition-left-to-right": true
+        },
+        "modules": [
+            "cpu",
+            "memory",
+            "disk",
+            "custom/temperature-guarded"
+        ]
+    },
+    "power-profiles-daemon": {
+        "format": "{icon}",
+        "tooltip-format": "Power profile\n\n{profile}\nDriver · {driver}\n\nLeft click: cycle power profile",
+        "tooltip": true,
+        "format-icons": {
+            "default": "",
+            "performance": "",
+            "balanced": "",
+            "power-saver": ""
+        }
+    },
+    "backlight": {
+        "format": "{icon} {percent}%",
+        "tooltip": true,
+        "tooltip-format": "Display brightness\n\n{percent}% brightness\n\nScroll: adjust brightness in 5% steps",
+        "format-icons": [
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+        ],
+        "scroll-step": 5,
+        "on-scroll-up": "$HOME/.local/bin/brightness-step up",
+        "on-scroll-down": "$HOME/.local/bin/brightness-step down"
+    },
+    "custom/spotify": {
+        "exec": "$HOME/.config/waybar/scripts/spotify.sh | python3 $HOME/.config/waybar/scripts/tooltip-style.py spotify",
+        "interval": 3,
+        "max-length": 24,
+        "return-type": "json",
+        "format": "{}",
+        "on-click": "bash $HOME/.config/waybar/scripts/toggle_media_dashboard.sh",
+        "tooltip": true,
+        "escape": false
+    },
+    "custom/capslock": {
+        "exec": "$HOME/.config/waybar/scripts/capslock-state.sh | python3 $HOME/.config/waybar/scripts/tooltip-style.py capslock",
+        "return-type": "json",
+        "format": "{text}",
+        "tooltip": true,
+        "escape": false
+    },
+    "group/notifications": {
+        "orientation": "horizontal",
+        "modules": [
+            "custom/network-status",
+            "backlight",
+            "pulseaudio",
+            "bluetooth",
+            "custom/notification"
+        ]
+    },
+    "privacy": {
+        "modules": [
+            {
+                "type": "screenshare",
+                "tooltip": true
+            },
+            {
+                "type": "audio-out",
+                "tooltip": true
+            },
+            {
+                "type": "audio-in",
+                "tooltip": true
+            }
+        ]
+    },
+    "custom/psad": {
+        "format": "{}",
+        "interval": 20,
+        "tooltip": true,
+        "exec": "$HOME/.config/waybar/scripts/psad_attackers.sh | python3 $HOME/.config/waybar/scripts/tooltip-style.py psad",
+        "escape": false,
+        "return-type": "json"
+    },
+    "custom/hyprsunset": {
+        "format": "{}",
+        "tooltip": true,
+        "return-type": "json",
+        "exec": "$HOME/.config/waybar/scripts/hyprsunset.sh | python3 $HOME/.config/waybar/scripts/tooltip-style.py hyprsunset",
+        "escape": false,
+        "on-click": "$HOME/.config/waybar/scripts/hyprsunset.sh click",
+        "on-click-right": "$HOME/.config/waybar/scripts/hyprsunset.sh resume_schedule",
+        "on-scroll-up": "$HOME/.config/waybar/scripts/hyprsunset.sh scroll_up",
+        "on-scroll-down": "$HOME/.config/waybar/scripts/hyprsunset.sh scroll_down",
+        "interval": 5
+    }
+}

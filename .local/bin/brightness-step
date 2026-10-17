@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+# Brightness control with fixed 5% steps and a distinct minimum nonzero level.
+# The raw backlight value is used so 5% -> minimum -> 0 is deterministic.
+
+set -euo pipefail
+
+readonly DEVICE_CLASS="backlight"
+readonly STEP_PERCENT=5
+readonly MIN_NONZERO=1
+
+usage() {
+    printf 'Usage: %s {up|down}\n' "$0" >&2
+    exit 2
+}
+
+direction="${1:-}"
+case "$direction" in
+    up|down) ;;
+    *) usage ;;
+esac
+
+current=$(brightnessctl --class="$DEVICE_CLASS" --quiet get)
+maximum=$(brightnessctl --class="$DEVICE_CLASS" --quiet max)
+
+[[ "$current" =~ ^[0-9]+$ ]] || exit 1
+[[ "$maximum" =~ ^[1-9][0-9]*$ ]] || exit 1
+
+step=$((maximum * STEP_PERCENT / 100))
+(( step < 1 )) && step=1
+
+if [[ "$direction" == up ]]; then
+    if (( current == 0 )); then
+        target="$MIN_NONZERO"
+    else
+        target=$((current + step))
+        (( target > maximum )) && target="$maximum"
+    fi
+else
+    if (( current <= MIN_NONZERO )); then
+        target=0
+    elif (( current <= step )); then
+        target="$MIN_NONZERO"
+    else
+        target=$((current - step))
+    fi
+fi
+
+brightnessctl --class="$DEVICE_CLASS" --quiet set "$target"

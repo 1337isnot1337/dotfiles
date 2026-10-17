@@ -1,0 +1,45 @@
+/* Charcoal and warm-gold palette shared with Eww and Waybar night mode. */
+:root {
+  --cc-bg: rgba(23, 23, 27, 0.98);
+  --noti-border-color: rgba(235, 203, 139, 0.18);
+  --noti-bg: 31, 29, 34;
+  --noti-bg-alpha: 0.98;
+  --noti-bg-darker: rgb(23, 23, 27);
+  --noti-bg-hover: rgba(235, 203, 139, 0.10);
+  --noti-bg-focus: rgba(224, 154, 112, 0.11);
+  --noti-close-bg: rgba(235, 203, 139, 0.08);
+  --noti-close-bg-hover: rgba(224, 154, 112, 0.16);
+  --text-color: rgb(242, 237, 240);
+  --text-color-disabled: rgb(119, 114, 122);
+  --bg-selected: rgb(235, 203, 139);
+  --notification-icon-size: 52px;
+  --notification-app-icon-size: 20px;
+  --notification-group-icon-size: 28px;
+  --border-radius: 16px;
+  --font-size-body: 13px;
+  --font-size-summary: 14px;
+}
+
+@define-color cc_bg rgba(23, 23, 27, 0.98);
+@define-color surface rgba(31, 29, 34, 0.98);
+@define-color surface_opaque rgb(31, 29, 34);
+@define-color surface_alt rgba(41, 38, 45, 0.98);
+@define-color surface_hover rgba(235, 203, 139, 0.10);
+@define-color outline rgba(235, 203, 139, 0.18);
+@define-color divider rgba(235, 203, 139, 0.12);
+@define-color text #f2edf0;
+@define-color muted #ada7ae;
+@define-color dim #77727a;
+@define-color accent #ebcb8b;
+@define-color accent_soft rgba(235, 203, 139, 0.10);
+@define-color coral #e09a70;
+@define-color coral_soft rgba(224, 154, 112, 0.10);
+@define-color success #a6e3a1;
+@define-color success_soft rgba(166, 227, 161, 0.10);
+@define-color warning #f9e2af;
+@define-color warning_soft rgba(249, 226, 175, 0.11);
+@define-color danger #f38ba8;
+@define-color danger_soft rgba(243, 139, 168, 0.12);
+@define-color shadow rgba(0, 0, 0, 0.58);
+
+@import url("style-common.css");

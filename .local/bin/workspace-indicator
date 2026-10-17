@@ -1,0 +1,209 @@
+#!/usr/bin/python3
+
+"""Show the active Hyprland workspace briefly in the top-right corner."""
+
+import glob
+import os
+import socket
+import threading
+import time
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("GtkLayerShell", "0.1")
+from gi.repository import GLib, Gtk, GtkLayerShell
+
+
+RUNTIME_DIR = os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+TOP_MARGIN = 64
+RIGHT_MARGIN = 18
+SQUARE_SIZE = 86
+HOLD_MILLISECONDS = 700
+FADE_STEP_MILLISECONDS = 30
+FADE_STEPS = 12
+
+
+class WorkspaceIndicator(Gtk.Window):
+    def __init__(self):
+        super().__init__(type=Gtk.WindowType.POPUP)
+
+        self._fade_source = None
+        self._hide_source = None
+        self._opacity_step = 0
+
+        self.set_decorated(False)
+        self.set_resizable(False)
+        self.set_skip_taskbar_hint(True)
+        self.set_skip_pager_hint(True)
+        self.set_default_size(SQUARE_SIZE, SQUARE_SIZE)
+
+        visual = self.get_screen().get_rgba_visual()
+        if visual is not None:
+            self.set_visual(visual)
+
+        GtkLayerShell.init_for_window(self)
+        GtkLayerShell.set_namespace(self, "workspace-indicator")
+        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.OVERLAY)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, True)
+        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, True)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, TOP_MARGIN)
+        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.RIGHT, RIGHT_MARGIN)
+        GtkLayerShell.set_exclusive_zone(self, -1)
+        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.NONE)
+
+        box = Gtk.EventBox()
+        box.set_size_request(SQUARE_SIZE, SQUARE_SIZE)
+        box.set_can_focus(False)
+        box.get_style_context().add_class("workspace-indicator-box")
+
+        self.label = Gtk.Label(label="")
+        self.label.set_halign(Gtk.Align.CENTER)
+        self.label.set_valign(Gtk.Align.CENTER)
+        self.label.get_style_context().add_class("workspace-indicator-label")
+        box.add(self.label)
+        self.add(box)
+
+        css = Gtk.CssProvider()
+        css.load_from_data(
+            b"""
+            window.workspace-indicator-window {
+                background-color: transparent;
+            }
+
+            .workspace-indicator-box {
+                background-color: rgba(24, 24, 32, 0.68);
+                border: 1px solid rgba(255, 255, 255, 0.28);
+                border-radius: 10px;
+            }
+
+            .workspace-indicator-label {
+                color: rgba(255, 255, 255, 0.96);
+                font-family: Sans;
+                font-size: 42px;
+                font-weight: 700;
+            }
+            """
+        )
+        Gtk.StyleContext.add_provider_for_screen(
+            self.get_screen(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+        self.get_style_context().add_class("workspace-indicator-window")
+
+        self.set_opacity(0.0)
+        self.connect("realize", self._make_click_through)
+
+    def _make_click_through(self, _window):
+        # The overlay should never intercept clicks intended for Waybar or apps.
+        gdk_window = self.get_window()
+        if gdk_window is not None:
+            gdk_window.set_pass_through(True)
+
+    def show_workspace(self, workspace_id):
+        """Update the number and restart the hold/fade animation."""
+        self.label.set_text(str(workspace_id))
+        self._cancel_timer("_hide_source")
+        self._cancel_timer("_fade_source")
+        self._opacity_step = 0
+        self.set_opacity(1.0)
+        self.show_all()
+        self._hide_source = GLib.timeout_add(
+            HOLD_MILLISECONDS, self._begin_fade
+        )
+        return GLib.SOURCE_REMOVE
+
+    def _begin_fade(self):
+        self._fade_source = GLib.timeout_add(
+            FADE_STEP_MILLISECONDS, self._fade_step
+        )
+        self._hide_source = None
+        return GLib.SOURCE_REMOVE
+
+    def _fade_step(self):
+        self._opacity_step += 1
+        opacity = 1.0 - (self._opacity_step / FADE_STEPS)
+        if opacity <= 0:
+            self.set_opacity(0.0)
+            self.hide()
+            self._fade_source = None
+            return GLib.SOURCE_REMOVE
+
+        self.set_opacity(opacity)
+        return GLib.SOURCE_CONTINUE
+
+    def _cancel_timer(self, attribute):
+        source_id = getattr(self, attribute)
+        if source_id is not None:
+            GLib.source_remove(source_id)
+            setattr(self, attribute, None)
+
+
+def workspace_socket_path():
+    signature = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE", "")
+    if signature:
+        path = os.path.join(
+            RUNTIME_DIR, "hypr", signature, ".socket2.sock"
+        )
+        if os.path.exists(path):
+            return path
+
+    candidates = glob.glob(os.path.join(RUNTIME_DIR, "hypr", "*", ".socket2.sock"))
+    if candidates:
+        return max(candidates, key=os.path.getmtime)
+    return None
+
+
+def workspace_id_from_event(event):
+    event_name, separator, payload = event.partition(">>")
+    if not separator or event_name != "workspacev2":
+        return None
+
+    # workspacev2 starts with the numeric ID and avoids the duplicate legacy
+    # workspace event emitted by Hyprland for the same switch.
+    value = payload.split(",", 1)[0].strip()
+    if value.isdigit() and int(value) > 0:
+        return value
+    return None
+
+
+def listen_for_workspaces(indicator):
+    """Reconnect as needed and forward workspace changes to the GTK thread."""
+    while True:
+        path = workspace_socket_path()
+        if path is None:
+            time.sleep(1)
+            continue
+
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as event_socket:
+                event_socket.connect(path)
+                buffer = b""
+                while True:
+                    chunk = event_socket.recv(4096)
+                    if not chunk:
+                        break
+                    buffer += chunk
+                    while b"\n" in buffer:
+                        raw_event, buffer = buffer.split(b"\n", 1)
+                        try:
+                            event = raw_event.decode("utf-8", "replace")
+                        except UnicodeDecodeError:
+                            continue
+                        workspace_id = workspace_id_from_event(event)
+                        if workspace_id is not None:
+                            GLib.idle_add(indicator.show_workspace, workspace_id)
+        except (OSError, ValueError):
+            time.sleep(1)
+
+
+def main():
+    indicator = WorkspaceIndicator()
+    listener = threading.Thread(
+        target=listen_for_workspaces, args=(indicator,), daemon=True
+    )
+    listener.start()
+    Gtk.main()
+
+
+if __name__ == "__main__":
+    main()

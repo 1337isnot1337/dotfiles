@@ -1,0 +1,128 @@
+# Don't print a new line at the start of the prompt
+add_newline = false
+
+# Starship supplies the dynamic module content. Fish post-processes this
+# fallback powerline into the true per-column gradient used interactively.
+format = "[](fg:#3B2638)$username$hostname$directory$git_branch$git_status$package$java$python${custom.acpi_battery}$cmd_duration$status$jobs$character[](fg:#B9785B)"
+
+# Wait 10 milliseconds for starship to check files under the current directory.
+scan_timeout = 10
+
+# Username settings
+[username]
+show_always = true
+style_root = "fg:#F8E6C4 bg:#4A2A40 bold"
+style_user = "fg:#F8E6C4 bg:#4A2A40 bold"
+format = "[  $user ]($style)[](fg:#4A2A40 bg:#5D3545)"
+disabled = false
+
+# Hostname settings
+[hostname]
+ssh_only = false
+style = "fg:#F8E6C4 bg:#5D3545 bold"
+format = "[ 󰍹 $hostname ]($style)[](fg:#5D3545 bg:#71434D)"
+trim_at = ".companyname.com"
+disabled = false
+
+# Directory indicator
+[directory]
+read_only = " "
+style = "fg:#FFF0D0 bg:#71434D bold"
+read_only_style = "fg:#FFD0B0 bg:#71434D bold"
+truncation_length = 3
+truncation_symbol = "…/"
+format = "[  ]($style)[$read_only]($read_only_style)[$path ]($style)[](fg:#71434D bg:#96584F)"
+disabled = false
+
+# Package Version Config
+[package]
+style = "fg:#FFE7C1 bg:#96584F bold"
+format = "[ 󰏗 $version]($style)"
+
+# Java settings
+[java]
+symbol = " "
+style = "fg:#F6C39D bg:#96584F bold"
+format = "[ $symbol$version]($style)"
+
+# Python settings
+[python]
+symbol = " "
+style = "fg:#F5D0A8 bg:#96584F bold"
+python_binary = "python3"
+pyenv_version_name = true
+format = "[ $symbol$version]($style)"
+
+# git settings
+[git_branch]
+symbol = " "
+truncation_length = 24
+truncation_symbol = ""
+style = "fg:#F8D3A4 bg:#96584F bold"
+format = "[ $symbol$branch]($style)"
+
+# Show useful repository state without changing the existing branch styling.
+[git_status]
+style = "fg:#FFD2B3 bg:#96584F bold"
+format = "[ $all_status$ahead_behind]($style)"
+conflicted = "=${count}"
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕${ahead_count}⇣${behind_count}"
+untracked = "?${count}"
+stashed = "≡${count}"
+modified = "!${count}"
+staged = "+${count}"
+renamed = "»${count}"
+deleted = "×${count}"
+
+# Show a failed command or active background jobs on the next prompt.
+[status]
+disabled = false
+symbol = ""
+style = "fg:#FFB39E bg:#96584F bold"
+format = "[ 󰅖 $status]($style)"
+
+[jobs]
+symbol = "󰜎 "
+style = "fg:#F8D3A4 bg:#96584F bold"
+number_threshold = 1
+format = "[ $symbol$number]($style)"
+
+# Battery information
+[battery]
+full_symbol = "󰁹 "
+charging_symbol = "󰂄 "
+discharging_symbol = "󰁾 "
+format = "[ $symbol$percentage]($style)"
+
+[[battery.display]]
+threshold = 20
+style = "fg:#FFB39E bg:#96584F bold"
+
+[[battery.display]]
+threshold = 100
+style = "fg:#F5D0A8 bg:#96584F bold"
+
+# Keep ACPI access out of Starship itself. The guarded reader preserves the
+# battery segment normally and reports the exact EC deadlock signature without
+# blocking Fish prompt initialization.
+[custom.acpi_battery]
+command = "$HOME/.local/bin/acpi-safe-hardware-status starship-battery"
+when = true
+shell = ["/usr/bin/bash", "--noprofile", "--norc"]
+format = "[ $output](fg:#F5D0A8 bg:#96584F bold)"
+
+# cmd_duration config
+[cmd_duration]
+show_milliseconds = true
+style = "fg:#F5D0A8 bg:#96584F bold"
+format = "[ 󰔛 $duration]($style)"
+
+# Charakter config
+[character]
+format = "$symbol"
+success_symbol = "[](fg:#96584F bg:#B9785B)[ ❯ ](fg:#2B1D2C bg:#B9785B bold)"
+error_symbol = "[](fg:#96584F bg:#B9785B)[ ✗ ](fg:#632C36 bg:#B9785B bold)"
+vicmd_symbol = "[](fg:#96584F bg:#B9785B)[ ❮ ](fg:#2B1D2C bg:#B9785B bold)"
+disabled = false

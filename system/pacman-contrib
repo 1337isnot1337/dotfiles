@@ -1,0 +1,3 @@
+# /etc/conf.d/pacman-contrib
+# Used by the packaged paccache.service, scheduled with paccache.timer.
+PACCACHE_ARGS="--keep 3"

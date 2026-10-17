@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+readonly WAYBAR_UNIT="waybar-recovery.service"
+
+waybar_pids="$(pgrep -x waybar || true)"
+
+if [[ -n "$waybar_pids" ]]; then
+    # Waybar handles SIGUSR1 as an immediate visibility toggle.  Signalling
+    # the existing process avoids the slow stop/start cycle and preserves
+    # module state and the supervisor's Hyprland IPC recovery.
+    while read -r pid; do
+        [[ -n "$pid" ]] && kill -USR1 "$pid" 2>/dev/null || true
+    done <<< "$waybar_pids"
+else
+    # Recover cleanly if Waybar is absent or the supervisor is between child
+    # restarts.  Do not make the keybinding wait for service startup.
+    systemctl --user --no-block start "$WAYBAR_UNIT"
+fi

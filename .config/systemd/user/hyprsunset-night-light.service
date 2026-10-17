@@ -1,0 +1,12 @@
+[Unit]
+Description=Hyprland night-light daemon for the scheduled night mode
+PartOf=hyprsunset-schedule.service
+After=hyprsunset-schedule.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/hyprsunset -t 6500
+Restart=on-failure
+RestartSec=2s
+KillMode=control-group
+TimeoutStopSec=5s

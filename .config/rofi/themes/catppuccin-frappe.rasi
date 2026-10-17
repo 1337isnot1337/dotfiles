@@ -1,0 +1,113 @@
+* {
+    black: #000000;
+    gray: #595959;
+    white: #ffffff;
+
+    font: "Liga SFMono Nerd Font 20";
+}
+
+element-text, element-icon , mode-switcher {
+    background-color: inherit;
+    text-color:       inherit;
+}
+
+window {
+    height: 720px;
+    width: 1200;
+    border: 3px;
+    border-radius: 20px;
+    whiteor: #ffffff;
+    border-color: #afafaf;
+    background-color: @black;
+}
+
+mainbox {
+    border-radius: 20px;
+    background-color: @black;
+}
+
+inputbar {
+    children: [prompt,entry];
+    background-color: @black;
+    border-radius: 5px;
+    padding: 2px;
+}
+
+prompt {
+    background-color: @gray;
+    padding: 6px;
+    text-color: @black;
+    border-radius: 3px;
+    margin: 20px 0px 0px 20px;
+}
+
+textbox-prompt-colon {
+    expand: false;
+    str: ":";
+}
+
+entry {
+    padding: 6px;
+    margin: 20px 20px 0px 10px;
+    text-color: @gray;
+    background-color: @black;
+    border: 2px;
+    border-radius: 3px;
+    whiteor: @gray;
+    placeholder:"Search";
+}
+
+listview {
+    border: 0px 0px 0px;
+    padding: 6px 0px 0px;
+    margin: 10px 0px 0px 20px;
+    columns: 2;
+    lines: 5;
+    background-color: @black;
+}
+
+element {
+    padding: 5px;
+    background-color: @black;
+    text-color: @gray  ;
+}
+
+element-icon {
+    size: 25px;
+}
+
+element selected {
+    background-color:  @gray ;
+    text-color: @black  ;
+}
+
+mode-switcher {
+    spacing: 0;
+  }
+
+button {
+    padding: 10px;
+    background-color: @black;
+    text-color: @white;
+    vertical-align: 0.5;
+    horizontal-align: 0.5;
+}
+
+button selected {
+  background-color: @black;
+  text-color: @gray;
+}
+
+message {
+    background-color: @black;
+    margin: 2px;
+    padding: 2px;
+    border-radius: 5px;
+}
+
+textbox {
+    padding: 6px;
+    margin: 20px 0px 0px 20px;
+    text-color: @gray;
+    background-color: @black;
+}

@@ -1,0 +1,14 @@
+[Unit]
+Description=Cliphist text clipboard watcher
+# The Wayland compositor can be replaced while the user manager remains alive.
+# Do not let a dead compositor socket permanently disable clipboard history.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/wl-paste --type text --watch %h/.local/bin/cliphist-metadata store
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

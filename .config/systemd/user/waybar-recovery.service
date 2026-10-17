@@ -1,0 +1,14 @@
+[Unit]
+Description=Waybar with Hyprland IPC recovery
+After=basic.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/waybar-supervisor
+Restart=always
+RestartSec=3
+KillMode=mixed
+
+[Install]
+WantedBy=default.target

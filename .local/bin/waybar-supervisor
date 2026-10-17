@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+
+set -u
+
+readonly WAYBAR_BIN="/usr/bin/waybar"
+readonly RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+readonly LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}"
+readonly LOG_FILE="$LOG_DIR/waybar-supervisor.log"
+readonly POLL_SECONDS=5
+readonly START_GRACE_SECONDS=15
+readonly BAD_CONNECTION_LIMIT=3
+# A user service can remain alive while the laptop is suspended.  Restart the
+# child after a long polling gap so Waybar re-reads network addresses on wake.
+readonly RESUME_GAP_SECONDS=60
+
+child_pid=""
+last_synced_signature=""
+last_synced_wayland_display=""
+
+log() {
+    mkdir -p "$LOG_DIR"
+    printf '%s %s\n' "$(date --iso-8601=seconds)" "$*" >> "$LOG_FILE"
+}
+
+hyprland_instance_is_live() {
+    local signature="$1"
+    local instance_dir="$RUNTIME_DIR/hypr/$signature"
+    local lock_file="$instance_dir/hyprland.lock"
+    local compositor_pid
+
+    [ -S "$instance_dir/.socket.sock" ] || return 1
+    [ -S "$instance_dir/.socket2.sock" ] || return 1
+    [ -r "$lock_file" ] || return 1
+
+    IFS= read -r compositor_pid < "$lock_file" || return 1
+    case "$compositor_pid" in
+        '' | *[!0-9]*) return 1 ;;
+    esac
+
+    kill -0 "$compositor_pid" 2>/dev/null
+}
+
+current_hyprland_signature() {
+    if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] &&
+        hyprland_instance_is_live "$HYPRLAND_INSTANCE_SIGNATURE"; then
+        printf '%s\n' "$HYPRLAND_INSTANCE_SIGNATURE"
+        return 0
+    fi
+
+    find "$RUNTIME_DIR/hypr" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %f\n' 2>/dev/null |
+        sort -nr |
+        while read -r _ signature; do
+            if hyprland_instance_is_live "$signature"; then
+                printf '%s\n' "$signature"
+                return 0
+            fi
+        done
+}
+
+prepare_session_environment() {
+    local signature
+    local session_wayland_display
+
+    signature="$(current_hyprland_signature || true)"
+    [ -n "$signature" ] || return 1
+    export HYPRLAND_INSTANCE_SIGNATURE="$signature"
+
+    session_wayland_display="$(sed -n '2p' "$RUNTIME_DIR/hypr/$signature/hyprland.lock")"
+    if [ -n "$session_wayland_display" ] && [ -S "$RUNTIME_DIR/$session_wayland_display" ]; then
+        WAYLAND_DISPLAY="$session_wayland_display"
+        export WAYLAND_DISPLAY
+    elif [ -z "${WAYLAND_DISPLAY:-}" ] || [ ! -S "$RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
+        WAYLAND_DISPLAY="$(find "$RUNTIME_DIR" -maxdepth 1 -type s -name 'wayland-*' -printf '%f\n' 2>/dev/null | sort -V | tail -n 1)"
+        export WAYLAND_DISPLAY
+    fi
+
+    [ -n "${WAYLAND_DISPLAY:-}" ] && [ -S "$RUNTIME_DIR/$WAYLAND_DISPLAY" ]
+}
+
+sync_systemd_session_environment() {
+    # User services such as hyprsunset inherit the systemd manager's
+    # environment, which can outlive a compositor restart. Keep it aligned
+    # with the live Hyprland instance selected above instead of allowing a
+    # stale WAYLAND_DISPLAY/socket pair to break those services.
+    if [ "$last_synced_signature" = "$HYPRLAND_INSTANCE_SIGNATURE" ] &&
+        [ "$last_synced_wayland_display" = "$WAYLAND_DISPLAY" ]; then
+        return 0
+    fi
+
+    systemctl --user import-environment \
+        WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE \
+        XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_RUNTIME_DIR \
+        >/dev/null 2>&1 || true
+    dbus-update-activation-environment --systemd \
+        WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE \
+        XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_RUNTIME_DIR \
+        >/dev/null 2>&1 || true
+
+    last_synced_signature="$HYPRLAND_INSTANCE_SIGNATURE"
+    last_synced_wayland_display="$WAYLAND_DISPLAY"
+}
+
+event_socket_path() {
+    printf '%s\n' "$RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
+}
+
+waybar_has_event_connection() {
+    local pid="$1"
+    local socket_path
+    socket_path="$(event_socket_path)"
+
+    ss -xap 2>/dev/null |
+        awk -v path="$socket_path" -v pid="$pid" '
+            $1 == "u_str" && $2 == "ESTAB" && $5 == path {
+                event_peers[$8] = 1
+            }
+            $1 == "u_str" && $2 == "ESTAB" &&
+            $0 ~ ("waybar.*pid=" pid "[,)]") {
+                waybar_inodes[$6] = 1
+            }
+            END {
+                for (inode in waybar_inodes) {
+                    if (inode in event_peers) {
+                        exit 0
+                    }
+                }
+                exit 1
+            }
+        '
+}
+
+stop_child() {
+    [ -n "$child_pid" ] || return 0
+    kill -TERM "$child_pid" 2>/dev/null || true
+
+    for _ in 1 2 3 4 5; do
+        kill -0 "$child_pid" 2>/dev/null || break
+        sleep 1
+    done
+
+    kill -KILL "$child_pid" 2>/dev/null || true
+    wait "$child_pid" 2>/dev/null || true
+    child_pid=""
+}
+
+restart_child() {
+    local reason="$1"
+    log "restarting Waybar: $reason"
+    stop_child
+    sleep 1
+}
+
+cleanup() {
+    log "supervisor stopping"
+    stop_child
+    exit 0
+}
+
+trap cleanup INT TERM
+
+log "supervisor started"
+
+while true; do
+    if ! prepare_session_environment; then
+        sleep "$POLL_SECONDS"
+        continue
+    fi
+    sync_systemd_session_environment
+
+    log "starting Waybar for Hyprland instance $HYPRLAND_INSTANCE_SIGNATURE"
+    "$WAYBAR_BIN" &
+    child_pid=$!
+    started_at="$(date +%s)"
+    last_check_at="$started_at"
+    bad_connections=0
+
+    while kill -0 "$child_pid" 2>/dev/null; do
+        now="$(date +%s)"
+        gap=$((now - last_check_at))
+        if [ "$gap" -ge "$RESUME_GAP_SECONDS" ]; then
+            restart_child "session resumed after ${gap}s gap"
+            break
+        fi
+        last_check_at="$now"
+        age=$((now - started_at))
+
+        if [ "$age" -ge "$START_GRACE_SECONDS" ]; then
+            if ! waybar_has_event_connection "$child_pid"; then
+                bad_connections=$((bad_connections + 1))
+                log "Waybar Hyprland event connection unhealthy ($bad_connections/$BAD_CONNECTION_LIMIT)"
+                if [ "$bad_connections" -ge "$BAD_CONNECTION_LIMIT" ]; then
+                    restart_child "missing connection to $(event_socket_path)"
+                    break
+                fi
+            else
+                bad_connections=0
+            fi
+        fi
+
+        sleep "$POLL_SECONDS"
+    done
+
+    if [ -n "$child_pid" ]; then
+        wait "$child_pid" 2>/dev/null || true
+        log "Waybar exited; restarting"
+        child_pid=""
+        sleep 2
+    fi
+done

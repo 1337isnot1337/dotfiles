@@ -1,0 +1,13 @@
+[Unit]
+Description=Static Eww desktop plaque
+PartOf=graphical-session.target
+After=graphical-session.target waybar-recovery.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/eww/src/open_desktop_plaque.sh
+RemainAfterExit=yes
+TimeoutStartSec=45s
+
+[Install]
+WantedBy=graphical-session.target

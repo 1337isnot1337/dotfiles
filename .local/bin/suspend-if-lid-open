@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# Preserve automatic suspend only while the laptop lid is open.
+for state_file in /proc/acpi/button/lid/*/state; do
+    [ -r "$state_file" ] || continue
+    if grep -qi 'state:[[:space:]]*open' "$state_file"; then
+        exec systemctl suspend
+    fi
+    exit 0
+done
+
+# If no lid state is available, do not suspend unexpectedly.
+exit 0

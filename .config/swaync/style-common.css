@@ -1,0 +1,386 @@
+/* Layout and component language for the warm day/night palettes. */
+
+* {
+  font-family: "Google Sans", "JetBrainsMono Nerd Font", "Noto Sans", sans-serif;
+  color: @text;
+  text-shadow: none;
+  box-shadow: none;
+}
+
+notificationwindow,
+blankwindow,
+.blank-window,
+.floating-notifications {
+  background: transparent;
+}
+
+.floating-notifications {
+  padding: 52px 8px 8px;
+}
+
+.notification-row {
+  background: transparent;
+  outline: none;
+}
+
+.notification-row:focus,
+.notification-group:focus {
+  background: transparent;
+}
+
+.notification-row .notification-background {
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+}
+
+.notification-row .notification-background .notification {
+  margin: 0;
+  padding: 0;
+  background: @surface;
+  border: 1px solid @outline;
+  border-left: 3px solid @accent;
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.notification-row .notification-background .notification.low {
+  border-left-color: @dim;
+}
+
+.notification-row .notification-background .notification.normal {
+  border-left-color: @accent;
+}
+
+.notification-row .notification-background .notification.critical {
+  /* Critical toasts must be opaque enough to remain legible over any app. */
+  background: @surface_opaque;
+  border-color: @danger;
+  border-left-color: @danger;
+}
+
+.notification-row .notification-background .notification .notification-default-action {
+  min-height: 58px;
+  margin: 0;
+  padding: 9px 10px;
+  background: transparent;
+  color: @text;
+  border: none;
+  border-radius: 15px;
+  transition: background 160ms ease;
+}
+
+.notification-row .notification-background .notification .notification-default-action:hover {
+  background: @surface_hover;
+  -gtk-icon-filter: none;
+}
+
+.notification-row .notification-background .notification .notification-default-action:not(:only-child) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.notification-content {
+  background: transparent;
+}
+
+.notification-content .image {
+  margin: 2px 10px 2px 0;
+  border-radius: 12px;
+  -gtk-icon-filter: none;
+  -gtk-icon-size: 52px;
+}
+
+.notification-content .app-icon {
+  margin: 4px;
+  -gtk-icon-filter: none;
+  -gtk-icon-size: 20px;
+  -gtk-icon-shadow: 0 2px 6px @shadow;
+}
+
+.notification-content .text-box {
+  padding: 1px 0;
+}
+
+.notification-content .text-box label {
+  filter: none;
+}
+
+.notification-content .text-box .summary {
+  color: @text;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.notification-content .text-box .time {
+  margin-right: 24px;
+  color: @dim;
+  font-family: "JetBrainsMono Nerd Font", monospace;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.notification-content .text-box .body {
+  margin-top: 2px;
+  color: @muted;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.notification-content .body-image {
+  margin-top: 7px;
+  background: @surface_alt;
+  border: 1px solid @divider;
+  border-radius: 10px;
+  -gtk-icon-filter: none;
+}
+
+.close-button {
+  min-width: 24px;
+  min-height: 24px;
+  margin-top: 7px;
+  margin-right: 7px;
+  padding: 0;
+  background: @surface_alt;
+  color: @muted;
+  border: 1px solid @divider;
+  border-radius: 50%;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.close-button:hover {
+  background: @coral_soft;
+  color: @coral;
+  border-color: @coral;
+}
+
+.notification-row .notification-background .notification .notification-alt-actions {
+  padding: 4px 6px 6px;
+  background: transparent;
+  border-top: 1px solid @divider;
+  border-bottom-left-radius: 15px;
+  border-bottom-right-radius: 15px;
+}
+
+.notification-row .notification-background .notification .notification-action {
+  margin: 3px;
+  padding: 0;
+}
+
+.notification-row .notification-background .notification .notification-action > button {
+  min-height: 30px;
+  padding: 0 10px;
+  background: @surface_alt;
+  color: @accent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notification-row .notification-background .notification .notification-action > button:hover {
+  background: @accent_soft;
+  border-color: @outline;
+}
+
+.notification-content progressbar {
+  margin-top: 6px;
+}
+
+.notification-content progressbar trough {
+  min-height: 5px;
+  background: @surface_alt;
+  border-radius: 5px;
+}
+
+.notification-content progressbar progress {
+  min-height: 5px;
+  background: @accent;
+  border-radius: 5px;
+}
+
+.notification-content .inline-reply {
+  margin-top: 6px;
+}
+
+.notification-content .inline-reply .inline-reply-entry {
+  min-height: 32px;
+  padding: 0 8px;
+  background: @surface_alt;
+  color: @text;
+  caret-color: @accent;
+  border: 1px solid @outline;
+  border-radius: 9px;
+}
+
+.notification-content .inline-reply .inline-reply-button {
+  min-height: 32px;
+  margin-left: 5px;
+  padding: 0 10px;
+  background: @accent;
+  color: @cc_bg;
+  border: none;
+  border-radius: 9px;
+  font-weight: 700;
+}
+
+.notification-group {
+  background: transparent;
+}
+
+.notification-group .notification-group-buttons,
+.notification-group .notification-group-headers {
+  margin: 2px 14px;
+  color: @muted;
+}
+
+.notification-group .notification-group-headers .notification-group-icon,
+.notification-group .notification-group-headers .notification-group-header {
+  color: @accent;
+}
+
+.notification-group.collapsed.not-expanded {
+  opacity: 0.58;
+}
+
+.notification-group.collapsed .notification-row .notification {
+  background: @surface;
+}
+
+.control-center {
+  margin: 0;
+  padding: 7px 4px 10px;
+  background: @cc_bg;
+  color: @text;
+  border: 1px solid @outline;
+  border-radius: 18px;
+  box-shadow: 0 16px 42px @shadow;
+}
+
+.control-center .control-center-list,
+.control-center .control-center-list-placeholder {
+  background: transparent;
+}
+
+.control-center .control-center-list-placeholder {
+  color: @dim;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.control-center .control-center-list .notification {
+  box-shadow: 0 5px 16px @shadow;
+}
+
+.widget {
+  margin: 6px 8px;
+  padding: 10px 12px;
+  background: @surface;
+  color: @text;
+  border: 1px solid @divider;
+  border-radius: 12px;
+}
+
+.widget-title {
+  margin-top: 4px;
+  margin-bottom: 1px;
+  padding: 9px 10px;
+  background: transparent;
+  border-color: transparent;
+}
+
+.widget-title > label {
+  margin-right: 8px;
+  color: @accent;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.widget-title > button,
+.widget-inhibitors > button {
+  min-height: 30px;
+  margin-left: 8px;
+  padding: 0 11px;
+  background: @surface_alt;
+  color: @muted;
+  border: 1px solid @divider;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.widget-title > button:hover,
+.widget-inhibitors > button:hover {
+  background: @coral_soft;
+  color: @coral;
+  border-color: @coral;
+}
+
+.widget-dnd {
+  padding: 9px 12px;
+}
+
+.widget-dnd label {
+  margin-right: 8px;
+  color: @muted;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.widget-dnd switch {
+  min-width: 42px;
+  min-height: 22px;
+  margin-left: 8px;
+  background: @surface_alt;
+  border: 1px solid @outline;
+  border-radius: 12px;
+}
+
+.widget-dnd switch:checked {
+  background: @accent;
+  border-color: @accent;
+}
+
+.widget-dnd switch slider {
+  min-width: 16px;
+  min-height: 16px;
+  margin: 2px;
+  background: @text;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px @shadow;
+}
+
+scrollbar,
+scrollbar trough {
+  background: transparent;
+  border: none;
+}
+
+scrollbar slider {
+  min-width: 4px;
+  min-height: 28px;
+  margin: 3px 1px;
+  background: @divider;
+  border-radius: 4px;
+}
+
+scrollbar slider:hover {
+  background: @outline;
+}
+
+tooltip {
+  padding: 6px 8px;
+  background: @surface_alt;
+  color: @text;
+  border: 1px solid @outline;
+  border-radius: 9px;
+  box-shadow: 0 5px 14px @shadow;
+}
+
+tooltip label {
+  color: @text;
+  font-size: 12px;
+}

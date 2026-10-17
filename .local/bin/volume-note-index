@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+set -u
+
+volume_ratio="${1:-}"
+
+/usr/bin/awk -v volume="$volume_ratio" '
+BEGIN {
+    # Reject malformed values instead of silently choosing a note.
+    if (volume !~ /^[0-9]+([.][0-9]+)?$/) {
+        exit 1
+    }
+
+    # These explicit endpoints prevent floating-point drift at the limits.
+    if (volume <= 0) {
+        print 0
+        exit
+    }
+    if (volume >= 1) {
+        print 20
+        exit
+    }
+
+    percent = int(volume * 100 + 0.5)
+    if (percent <= 0) {
+        print 0
+    } else if (percent >= 100) {
+        print 20
+    } else {
+        note = int((percent + 2) / 5)
+        if (note < 0) note = 0
+        if (note > 20) note = 20
+        print note
+    }
+}'

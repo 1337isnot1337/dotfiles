@@ -1,0 +1,112 @@
+* {
+    bg: #2b1e2b;
+    surface: #3a2735;
+    muted: #e8c5bc;
+    text: #fff7f2;
+    accent: #db855c;
+    border: #b85d60;
+
+    font: "Liga SFMono Nerd Font 20";
+}
+
+element-text, element-icon, mode-switcher {
+    background-color: inherit;
+    text-color: inherit;
+}
+
+window {
+    width: 1100px;
+    border: 2px;
+    border-radius: 18px;
+    border-color: @border;
+    background-color: @bg;
+}
+
+mainbox {
+    border-radius: 18px;
+    background-color: @bg;
+}
+
+inputbar {
+    children: [prompt, entry];
+    background-color: @bg;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+prompt {
+    background-color: @accent;
+    padding: 8px 12px;
+    margin: 16px 0px 0px 16px;
+    text-color: @bg;
+    border-radius: 6px;
+}
+
+textbox-prompt-colon {
+    expand: false;
+    str: ":";
+}
+
+entry {
+    padding: 8px 12px;
+    margin: 16px 16px 0px 10px;
+    text-color: @text;
+    background-color: @surface;
+    border: 1px;
+    border-color: @border;
+    border-radius: 6px;
+}
+
+listview {
+    border: 0px;
+    padding: 8px 0px 0px;
+    margin: 10px 0px 0px 16px;
+    columns: 2;
+    lines: 6;
+    background-color: @bg;
+}
+
+element {
+    padding: 8px;
+    background-color: @bg;
+    text-color: @muted;
+    border-radius: 6px;
+}
+
+element-icon {
+    size: 28px;
+}
+
+element selected {
+    background-color: @accent;
+    text-color: @bg;
+}
+
+mode-switcher {
+    spacing: 0;
+}
+
+button {
+    padding: 10px;
+    background-color: @bg;
+    text-color: @text;
+}
+
+button selected {
+    background-color: @surface;
+    text-color: @accent;
+}
+
+message {
+    background-color: @surface;
+    margin: 2px;
+    padding: 6px;
+    border-radius: 6px;
+}
+
+textbox {
+    padding: 6px;
+    margin: 16px 0px 0px 16px;
+    text-color: @muted;
+    background-color: @bg;
+}

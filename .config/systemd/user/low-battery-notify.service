@@ -1,0 +1,15 @@
+[Unit]
+Description=Low battery notifications
+After=basic.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+ExecStart=%h/.local/bin/low-battery-notify
+Restart=always
+RestartSec=5s
+TimeoutStopSec=10s
+
+[Install]
+WantedBy=default.target

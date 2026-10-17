@@ -1,0 +1,25 @@
+/* Day palette.  Layout lives in style-common.css so mode changes are atomic. */
+@define-color surface rgba(255, 255, 255, 0.10);
+@define-color surface-alt rgba(255, 255, 255, 0.14);
+@define-color tooltip-surface rgba(255, 250, 246, 0.97);
+@define-color tooltip-outline rgba(108, 89, 96, 0.26);
+@define-color surface-hover rgba(255, 255, 255, 0.16);
+@define-color outline rgba(255, 255, 255, 0.20);
+@define-color divider rgba(255, 255, 255, 0.15);
+@define-color text #3c3035;
+@define-color muted #6c5960;
+@define-color dim #927c83;
+@define-color accent #9a633d;
+@define-color coral #b35f3b;
+@define-color accent-soft rgba(154, 99, 61, 0.12);
+@define-color coral-soft rgba(179, 95, 59, 0.11);
+@define-color coral-border rgba(179, 95, 59, 0.42);
+@define-color success #4f7f5a;
+@define-color success-border rgba(79, 127, 90, 0.36);
+@define-color warning #986f2f;
+@define-color warning-border rgba(152, 111, 47, 0.40);
+@define-color danger #ae4c68;
+@define-color danger-soft rgba(174, 76, 104, 0.12);
+@define-color danger-border rgba(174, 76, 104, 0.50);
+@define-color shadow rgba(32, 19, 28, 0.20);
+@import url("style-common.css");

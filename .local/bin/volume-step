@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+set -u
+
+direction="${1:-}"
+step="${2:-5}"
+
+case "$step" in
+    ''|*[!0-9]*)
+        exit 2
+        ;;
+esac
+
+case "$direction" in
+    up)
+        change="${step}%+"
+        ;;
+    down)
+        change="${step}%-"
+        ;;
+    *)
+        exit 2
+        ;;
+esac
+
+/usr/bin/wpctl set-volume --limit 1.0 @DEFAULT_AUDIO_SINK@ "$change" || exit 1
+
+# Play the note for the new volume level. Each 5% is one C-major scale
+# degree, so raising volume walks upward and lowering it walks downward.
+volume_info=$(/usr/bin/wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null || true)
+volume_ratio=$(awk '{ if ($1 == "Volume:") { print $2; exit } }' <<< "$volume_info")
+note_index=$($HOME/.local/bin/volume-note-index "$volume_ratio" 2>/dev/null || true)
+
+sound_file=""
+if [[ "$note_index" =~ ^([0-9]|1[0-9]|20)$ ]]; then
+    sound_file=$(printf '$HOME/.local/share/sounds/volume-feedback/scale-%02d.wav' "$note_index")
+fi
+
+if [[ ! -r "$sound_file" ]]; then
+    sound_file="/usr/share/sounds/ocean/stereo/button-pressed.oga"
+fi
+if [[ -r "$sound_file" ]]; then
+    # Resolve the same sink used by wpctl so feedback follows output changes.
+    sink_id=$(/usr/bin/wpctl inspect @DEFAULT_AUDIO_SINK@ 2>/dev/null \
+        | sed -n 's/^id \([0-9][0-9]*\),.*/\1/p' | head -n 1)
+    play_args=()
+    if [[ "$sink_id" =~ ^[0-9]+$ ]]; then
+        play_args=(--target "$sink_id")
+    fi
+
+    /usr/bin/setsid -f /usr/bin/pw-play "${play_args[@]}" "$sound_file" \
+        </dev/null >/dev/null 2>&1 &
+fi

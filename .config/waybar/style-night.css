@@ -1,0 +1,25 @@
+/* Night palette.  Layout lives in style-common.css so mode changes are atomic. */
+@define-color surface rgba(23, 23, 27, 0.96);
+@define-color surface-alt rgba(31, 29, 34, 0.98);
+@define-color tooltip-surface rgba(29, 27, 31, 0.97);
+@define-color tooltip-outline rgba(235, 203, 139, 0.25);
+@define-color surface-hover rgba(235, 203, 139, 0.10);
+@define-color outline rgba(235, 203, 139, 0.18);
+@define-color divider rgba(235, 203, 139, 0.14);
+@define-color text #f2edf0;
+@define-color muted #ada7ae;
+@define-color dim #77727a;
+@define-color accent #ebcb8b;
+@define-color coral #e09a70;
+@define-color accent-soft rgba(235, 203, 139, 0.10);
+@define-color coral-soft rgba(224, 154, 112, 0.08);
+@define-color coral-border rgba(224, 154, 112, 0.38);
+@define-color success #a6e3a1;
+@define-color success-border rgba(166, 227, 161, 0.30);
+@define-color warning #f9e2af;
+@define-color warning-border rgba(249, 226, 175, 0.34);
+@define-color danger #f38ba8;
+@define-color danger-soft rgba(243, 139, 168, 0.12);
+@define-color danger-border rgba(243, 139, 168, 0.50);
+@define-color shadow rgba(0, 0, 0, 0.58);
+@import url("style-common.css");
