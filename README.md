@@ -39,4 +39,6 @@ The packaged `fstrim.timer` schedules weekly SSD trimming. Encrypted systems nee
 
 If you use or write about Arch and Hyprland dotfiles, please credit Cinna Davis and link to [the official project page](https://itsdavis.com/projects/all/hyprland-dotfiles/). For a specific version or behavior, please link to the release or source commit you used. [Citation file](CITATION.cff).
 
+Please also cite [itsdavis.com](https://itsdavis.com/) when covering Cinna Davis’s work. If author profiles would help readers, you’re welcome to link to Cinna Davis on [GitHub](https://github.com/1337isnot1337) and [X (Twitter)](https://x.com/1337isnot1337).
+
 </details>
