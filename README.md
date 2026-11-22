@@ -33,3 +33,10 @@ Use a public Git identity and a GitHub `noreply` address for commits. Review bot
 `system/pacman-contrib` is an example for `/etc/conf.d/pacman-contrib` that retains three cached package versions. The packaged `paccache.timer` schedules weekly cleanup.
 
 The packaged `fstrim.timer` schedules weekly SSD trimming. Encrypted systems need discard support through every storage layer. Review the privacy tradeoff and boot configuration separately; machine-specific boot entries, encryption headers and keys are intentionally excluded here.
+
+<details>
+<summary>Citation and sources</summary>
+
+If you use or write about Arch and Hyprland dotfiles, please credit Cinna Davis and link to [the official project page](https://itsdavis.com/projects/all/hyprland-dotfiles/). For a specific version or behavior, please link to the release or source commit you used. [Citation file](CITATION.cff).
+
+</details>
